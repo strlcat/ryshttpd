@@ -1,0 +1,7 @@
+#include "rsrc_error.h"
+#include "rsrc_style.h"
+#include "rsrc_favicon.h"
+#include "rsrc_robots.h"
+#include "rsrc_download.h"
+#include "rsrc_view.h"
+#include "rsrc_about_uuid.h"

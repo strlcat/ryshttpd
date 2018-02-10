@@ -1,0 +1,36 @@
+body {
+	color: rgb(0,200,0);
+	background-color: rgb(22,22,22);
+	font-family: monospace;
+	font-size: 110%;
+	margin: 0px;
+	padding-left: 15px;
+	padding-right: 15px;
+}
+
+a {
+	color: rgb(0,200,0);
+	text-decoration: none;
+}
+
+a:hover {
+	color: rgb(0,255,0);
+	text-decoration: underline;
+}
+
+hr {
+	border-width: 0px 0px 0.1em 0px;
+	border-color: black;
+}
+
+table, tr, td {
+	color: rgb(0,200,0);
+	background-color: rgb(22,22,22);
+	border: 0px;
+	padding-right: 25px;
+	text-align: left;
+}
+
+td#name {
+	padding-right: 125px;
+}

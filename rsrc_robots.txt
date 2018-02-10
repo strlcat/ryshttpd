@@ -1,0 +1,10 @@
+# Place your own robots.txt into
+# the root of your shared directory
+# to disable this embedded one.
+# Same goes for /favicon.ico
+
+User-Agent: *
+Disallow: /_rsrc/
+Disallow: *?dl=1
+Disallow: *?vi=1
+Disallow: *?txt=1

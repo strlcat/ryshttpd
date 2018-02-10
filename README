@@ -1,0 +1,373 @@
+ryshttpd -- small, plain, fast embedded http server.
+
+	"Sometimes you just need a web server. Not an Apache, and not even nginx.
+	A thing which you may easily build for any existing Unix system, just
+	remember some easy cmdline arguments and have it share a directory."
+
+ryshttpd is a little forking Unix HTTP server designed to be:
+- portable, so it does not require any special features from OS kernel,
+- fast, so it serves files as is, but as fast as possible,
+- small, so it does have minimal dependenices to setup, and not a memory hog,
+- plain, so it is VERY easy to build and configure it.
+
+It supports:
+- full and partial file transfers of almost any size (up to 2^64 bytes),
+- attempts to read file anyway, even if it is "virtual" or "special",
+- good directory listings,
+- running CGI/1.1 scripts and programs and piping data to them,
+- determining arbitrary MIME types by using libmagic (optional),
+- following symlinks, even to outside of http root directory.
+
+ryshttpd is considered a modern successor of such small servers
+as mini_httpd and darkhttpd, but with more functionality.
+
+Features:
+- small, fast, lightweight both in binary and memory sizes, self hosted,
+- single executable: little or no dependencies (only libmagic), no installation needed,
+- works completely without configuration file involved, or any other filesystem entries,
+  configured purely by command line arguments,
+- emits directory listings, or index file,
+- direct read() calls to read a file,
+- no special APIs involved, minimum build time configuration,
+- is able to run CGI 1.1 scripts, piping input to it and output to client,
+- multiple CGI modes: CGI emits it's own headers, CGI appends it's own headers,
+- is able to run single CGI script for every request (a so called "CGI server" mode),
+- configurable HTTP keep alive support,
+- supports IPv6,
+- supports TLS v1.0/1.1/1.2 with help from TLSe (https://github.com/eduardsui/tlse),
+- limits number of concurrent client connections,
+- limits IPv6 connections to a /64 IPv6 subnet, not to a /128 single IPv6 address,
+  to prevent possible DoS/resource exhaustion attacks,
+- htaccess support (see below) with good enough homebrew rewrites,
+- xrealip support (setting "admin" proxy address and listening for X-Real-IP header),
+- simple forking server: creates a child per each connected client,
+- supports switching privileges, tuning them down to setuid/setgid and grouplist,
+- supports switching file system root (chroot), and dropping privileges after such a switch,
+- lookups user info at fs root, then chroots, then switches privileges to a previously looked up information,
+- has embedded resources such as error page template, style.css, favicon and robots.txt,
+- has network speed limit mechanism, both for download and upload (headers are not limited),
+  which is also may be configured inside .htaccess per directory or on rewrite rule match,
+- supports specifying partial file transfers as a parameter to a file in form
+  like '/file.jpg?range=128-1024',
+- special parameters to (attempt) force browser to display content inline with
+  '/file.jpg?vi=1' to view inline and '/file.jpg?dl=1' to force show a download box,
+- path restoration support, so directory listings behind a path rewriting frontend
+  are not messed up,
+- Simple, yet extendable codebase, accurate IO layer, source of reusable well commented code.
+
+Security:
+- parses client request after privilege switch,
+- uses it's own memory allocation routines designed to prevent buffer overflows,
+  to catch programming bugs and to ease debugging a bit,
+- filters incoming data to match pure ASCII text or urlencoded data,
+- filters unsafe path parts which try to break http root (such as "/../"),
+- ensures that request path must start from a '/' character,
+- escapes HTML characters that came from user to prevent CSS/XSS attacks,
+- filters attempts to include %00 NUL bytes,
+- filters logs so tty control characters are escaped,
+- drops stale or stuck clients and their connections,
+- listening master server is not connected to a client in any way,
+  other than logging pipe and SIGCHLD handling and pid resolving function,
+
+Standards:
+- supports HTTP 0.9/1.0/1.1 (0.9 is implemented differently: it returns full response headers too,
+  but no browsers today use it other than humans in tests, so it even easier to debug things),
+- currently supports only HTTP GET, HEAD and POST (for CGI) requests,
+- POSIX.1-2001, C99 conformant, gcc 4.2.1 compatible, no special apis or syscalls used,
+- POSIX.1-2001 extended regex matching engine,
+- TLS v1.0/1.1/1.2 if TLSe (WITH_TLS) enabled; NO INSECURE SSL 2.0/3.0,
+- At least builds fine on musl system with only _BSD_SOURCE defined.
+
+To be considered (long term):
+- authenticated (somehow; over TLS?) file uploads using HTTP PUT request,
+- FastCGI/SCGI support,
+- HTTP/2.
+
+Not TODO (harmful or junk stuff):
+- directory listing sorting (takes much memory, inefficient),
+- virtual hosts of any form (other than restricting to regex),
+- Pure dialogue HTTP authentication of any form / 401 HTTP code,
+- Modules of any form and any other pluggable in code,
+- Server side includes.
+
+RATIONALE
+
+ryshttpd is written in spare time since Jan2018 by Andrey Rys. It's primary goal is to
+replace mini_httpd instances in the author's home and office infrastructure.
+
+ryshttpd was written to serve Really Large Files such as disk images. It also must
+serve partial file transfers of any length, such as big internet radio captures.
+
+While mini_httpd served fine for many years, author did not looked into it. It lacked
+support for things like X-Real-IP header, tried to enforce sendfile() usage with 2003
+incompatible semantics and by 2018 it was awkward to use. When it was patched out of
+these fallacies, author discovered that it's unable to transfer a 1GB file with
+mini_httpd: it simply tried to read the _whole file_ into memory before sending it
+to a client. This resulted in an OOM Killer action.
+
+ryshttpd must be small such as busybox httpd or mini_httpd, really, but must be flexible enough.
+I gained great experience during writing my own super(8) program, and I wanted ryshttpd
+to be the same flexible and reusable thing. I took much code from super(8) to form it.
+
+I also dreamed about writing my own httpd since even 2007. But I lacked experience for years,
+and only now I ready to write one.
+
+ryshttpd also is a future teststand for my experiments with it. Things like FastCGI or
+TLS support may end up there, and will form a basis for a more advanced HTTP server.
+
+ryshttpd is going to be maintained for a long time, unlike mini_httpd, which looks like
+abandoned. Even if there are releases, internally code is still very messy, 2003 style.
+
+HTACCESS
+
+There is the only filesystem thing on which ryshttpd optionally relies: .htaccess files.
+ryshttpd chose not to have an individual configuration file of it's own, so altering
+certain (specific!) behavior of ryshttpd requires them to be present.
+
+The .htaccess file format is NOT compatible with any of existing implementations.
+Nor Apache or any other syntax is supported. They're have my own syntax.
+But .htaccess file name is matched recursively (Apache style).
+Of course, .htaccess file is forbidden from accessing outside.
+Naming of .htaccess file may be changed with command line option (see `ryshttpd -h` for help).
+
+Note that htupload.cgi component included does NOT check for a forbidden
+.htaccess file name to upload. You should check it yourself!
+
+"allow IP/subnet/all": permit access to a directory,
+	IP[/subnet] specifies IP address or subnet to which rule applies,
+	while "all" specifies that anyone may have access.
+"deny IP/subnet/all": deny access to a directory.
+	The syntax is same as for "allow".
+"return HTTPcode": immediately return an HTTP code.
+	If such code is not supported by ryshttpd (see response_codes.h),
+	then a generic 500 Server Error code will be returned instead.
+"header Name Value": append custom header or replace existing one.
+	While "Name" cannot contain spaces, "Value" can.
+"redirect URL": immediately redirect user to a URL, with 302 status code.
+	URL may be absolute (begin with protocol and such), or relative.
+	redirect returns a 302 Found code and proper Location header.
+"movedto URL": the same as redirect above, but it returns 301 status code.
+	301 status code usually means that resource was renamed or moved
+	permanently and the accessing URL should not be referred as it was before,
+	while 302 status code just does temporarily redirection.
+	These two are just to provide an ability to administrator to choose from.
+"noindex yes": restrict indexing of directory, if it has no index file.
+	If this directive is applied, an attempt to index directory will return 403 error.
+	This is applied to all indexing modes: both HTML and plain text (with "txt=1" query string).
+	However, all files inside that directory will be accessible (if client knows their names).
+	The proper Unix way maybe is to put index.html into that directory, or
+	set access mode so that http server cannot get file list for it.
+	This is just another way to disable directory indexing.
+	Note that this directive is NOT recursive: subdirectories will be indexed.
+"ratelimit number": limit network speed (rate), both upload and download, by this number.
+	The number may be specified as a raw number of bytes (for example, 1048576),
+	or as a simple, non fractioned, human readable number (for example, 80k).
+	The speed will be forcibly limited to this value, but you should get the fact
+	that it depends on a network read/write buffer size, so small numbers up to 10M
+	will work flawlessly but larger ones may require you to extend the buffer size
+	with -O rdwr_bufsize option up to 131072 bytes.
+"ratelimit_up number": same as ratelimit, but applied only to upload (from client to server) speed.
+"ratelimit_down number": same as ratelimit, but applied only to download
+	(from server to client) speed.
+"rewrite spec pattern destination": the experimental rewrite service. It will match pattern
+	directed by spec, parse destination string and overwrite it as the new pathspec for
+	request to continue, then it will partially restart the request again without
+	incrementing internal state. Please see htaccess.c source file for more info.
+	An example is something like that: `rewrite req_path "/w00tw00t.*" "/bots.html"`
+	Rewriting to internal resources is permitted too. FS lookups are restarted for
+	single matched rewrite. Note that rewrite is NOT recursive at this time!
+	Quotes surrounding pattern and destination are mandatory.
+
+Comments are supported, but only at the beginning of the line.
+Inline comments starting after a config item are NOT supported.
+
+Please note that, as with super(8), .htaccess files are considered an admin maintained thing.
+The same rules apply here too: if a syntax error causes ryshttpd to fail or even segfault,
+it's an admin duty to fix it and know a valid syntax. ryshttpd will NEVER hint you about a
+valid syntax or point to a syntax errors because that's an added unnecessary code.
+
+LIBMAGIC
+
+ryshttpd is able to resolve file types very accurately, but using only libmagic.
+if built-in statically, this bloats ryshttpd binary somewhere up by 200k, and requires
+libmagic database containing mime types of desired files. Although MIME lookups then
+are very accurate (if using an official `File` package database), space requirements,
+especially on embedded systems arise.
+
+For this reason it was considered to make it optional and provide a static MIME
+database (by default) as well. But then memory requirements shift from storage to runtime:
+regex engine typically wants it's own largy memory allocations while compiling patterns.
+For this reason the provided default MIME database (mimedb.h) is not much big.
+
+So _accurate_ MIME lookup always requires space, either storage or runtime.
+
+RATE LIMITING
+
+ryshttpd supports simple (wget style) network rate limiting by accurate userspace sleeping.
+Because each client connected gains it's own process, the sleeping strategy is adequeate.
+
+Both download and upload rates may be limited, and both globally, or via .htaccess rule.
+
+Rate limit numbers are expressed in bytes per second (kilo-, mega-, giga-), these numbers
+are expressed as powers of two numbers instead of powers of 10 as casual user may think.
+(hence the 256k is 256 * 1024 but not 256 * 1000).
+
+The intermediate I/O buffer (so called workbuf in client.c) gets divided into smaller chunks,
+and the whole second of transfer is also gets divided into fractions. The number of chunks
+is not fixed: it starts from 32 and multiplies by two if rate limit is higher. The core idea
+is that the workbuf shall never be increased: instead, time (second) gets fractioned to fit
+the workbuf. Then when sending a file, ryshttpd works with workbuf in a chunk idea: it sends
+each chunk separately, measuring time spent in sending, then calculates the difference. If
+client retrieved chunk faster than desired, then ryshttpd sleeps the remaining time,
+effectively limiting network speed. This happens for each complete chunk. On incomplete chunk
+the same strategy is applied, only calculating remaining time for the size of that chunk.
+Because workbuf can make incomplete tail chunk, it is also required to calculate a time value
+of that last chunk. It maybe slightly inaccurate due to dividing and multiplying, but in
+practice it shown great accuracy.
+
+The only "bug" hides when admin requests rate limit of 10M(bytes) or more. The small workbuf
+causes the second of time to be fractioned even more (2048 or 4096 times or more), so ryshttpd
+starts spending time inside nanosleep "borders" / clock_gettime syscalls instead of normal sleep.
+This does not give a user retrieving a file any privilege, instead, the speed is limited
+more than specified (tests shown with 32k workbuf a 100M limit resulted in 70M limit). This is
+_easily_ solvable by increasing workbuf size with -O rdwr_bufsize= cmdline option. The default
+value now is 32k, but it can be extended to 128k and 100M rate limit will work accurately.
+
+REWRITE SERVICE
+
+ryshttpd provides an incompatible rewrite for those who like to "beautifulise" their URLs.
+But rewrite service provides more than simple URL rewriter. It embeds regex matches and
+some builtin variables to match against.
+
+The syntax is plain and might be confusing from the beginning:
+
+	rewrite <varspec> "regex" "<replacer/.htaccess rule>"
+
+, where <varspec> is a single or multiple specificators of ryshttpd recognised variables,
+divided by comma (multiple specificators values are concatenated into single string),
+"regex" is a total regex pattern to match specificators built string against,
+and "<replacer/.htaccess rule>" is either replaces matched string with parsed one,
+or applies a .htaccess rule from the list above.
+
+Take this rule for example:
+
+	rewrite req_path "/data/images/[^/]*\.jpg" "/data/images/lynx.jpg"
+
+It will replace every "/data/images/image.jpg" with "/data/images/lynx.jpg" and it will continue
+executing the request with new, rewritten request value, which will become "/data/images/lynx.jpg".
+The rule matches "/data/images/image.jpg", "/data/images/image2.jpg" but not "/data/images/img/image.jpg".
+
+A rate limiting rule example:
+
+	rewrite req_path "/cgi/upload\.pl" "ratelimit_up 100k"
+
+It will apply "ratelimit_up 100k" .htaccess rule to anything which request path matches
+the specified "/cgi/upload.pl". Another example:
+
+	rewrite clinfo_proto "http" "movedto https://%{hdr_host}%{req_request}"
+
+does a modern HTTPS everywhere redirects to a secure website location, if a client
+is matched to be attempting browsing with plain HTTP protocol.
+
+More complex example:
+
+	rewrite hdr_user_agent,%{@},req_path "(.*(w|W)get.*)%\{@\}(/data(|/.*))" "return 403"
+
+denies any client identified itself as wget of any kind to retrieve things from /data.
+Note "%{@}" between two commas. It is a separator that gets added into pattern as is.
+It also echoed in regex. Because client cannot introduce %{} fmtstr templates into
+supplied data, it is to be sure that there was no violation from the client side
+(however in most cases, a single '@' is enough).
+
+Regex machine permit you to build more sophisticated rules, not only examples I provided here.
+It must be unlimited in ryshttpd, so you're free to implement as much as complex rules.
+
+HTUPLOAD
+
+ryshttpd includes a handy htupload program which downloads file from client, stores it
+into specified directory by configuration and shows a message, or sends him a webpage.
+The program is a CGI compatible. It is created to fill the gap of missing HTTP PUT
+method which ryshttpd currently does not implement.
+It reads a configuration file htupload.conf which must reside in the directory where it
+was called from (hence, $PWD). The following parameters it understands:
+
+"upload_dir /path": absolute or relative path to a directory where to put the uploaded files.
+	It should exist. htupload will never try to create directories or directory trees.
+"max_file_size fsize": an exact size in bytes to limit the uploading file size.
+	Please note that if size is exceeded (as reported to program by CONTENT_LENGTH
+	CGI environment variable), the program will interrupt a POST upload _immediately_,
+	leaving connection and your browser will probably display an "Connection was reset" error.
+	There is NO any way to "successfully" interrupt a progressing upload. Sorry.
+	The same behavior will be there is any other error will occur.
+"allow_overwrite": allow to overwrite files (uploading them again over). This may help
+	to "resume" interrupted transfers, but also this may lead to abuse. By default,
+	htupload denies to overwrite existing files.
+"log /path": path to a writable log file. It will contain date of upload, IP address of
+	uploader, file name and it's size. By default htupload never logs anything.
+	Failure to write the log item will yield an error to uploader.
+"success_page /path": read and send this webpage to the uploader. The path is absolute or relative
+	to an existing file (maybe outside of server root). Currently there are no any
+	templates residing in webpage are replaced with file names, sizes etc.
+	This is to be implemented in future versions.
+"success_message message": display this message to uploader. The message is sent as a plain string.
+	The parameter may contain any characters you like, including space.
+"forbidden_filenames regex": a regex string denying uploading certain file names, types etc.
+	If those file names are matched, the transfer is interrupted with an message.
+"allowed_filenames regex": an exclusion to forbidden_filenames parameter. You may deny all
+	files with forbidden_filenames and permit a subset of them here.
+	It's not effective without forbidden_filenames previously set!
+
+SEE ALSO
+
+The basic features were considered by mini_httpd, such as directory listings
+and full CGI bidirectional support.
+
+darkhttpd is also a usable alternative, although it does not supports CGI.
+For me, CGI support is a requirement. Long time ago darkhttpd even had no
+IPv6 support, which was considered as a major disadvantage of the time.
+However IPv6 did not boomed since 2011 much, and today it's just a score badge.
+(but still it was considered to have it supported in ryshttpd)
+
+busybox httpd is serving me while I writing ryshttpd to replace it.
+It is very good to have one on an embedded system and it works fine serving
+large files too, but it does not do directory listings which I need too.
+
+Keep alive, future FastCGI support and TLS (https) were considered by nginx.
+
+The whole thing was built ontop of super(8) codebase.
+
+NAME
+
+ryshttpd stands for Rys' HTTP server. `Rys' is a russian name for a Eurasian Lynx,
+a large feline, populations of which are living mostly in Siberia. It's also an author's surname.
+
+THANKS AND CREDITS
+
+To SANELINUX dev.Team, namely:
+- Vsevolod Krasovsky (for original idea and inspiration),
+- Astafiev Anton (for many suggestions about how it could be better).
+
+To Eduard Suica, the author of TLSe, for such a good embeddable
+TLS v1.0/1.1/1.2 implementation, and for further support and bug hunting.
+
+COPYRIGHT AND DISCLAIMER
+
+ryshttpd is copyrighted material: Copyright (C) 2018 Andrey Rys.
+It is licensed to you under the terms and conditions of std. MIT license.
+Please see the terms and conditions in the included COPYRIGHT file.
+If you refuse to accept them, then you should NEVER use this software.
+Do not worry, the conditions are very liberal and giving most freedoms to you.
+
+ryshttpd is provided as is: no warranties and obligations are offered.
+If it will damage your equipment, data or do other destructive things, then
+you solely accept the damage: you chose to use it, you carry the full
+responsibility for the choice. Not the author nor the contributors carry
+responsibility and obligations for the damages you did experienced.
+
+The author however is nice enough to accept bugreports, donations or suggestions.
+Please contact him by email: Andrey Rys <rys@lynxlynx.ru>.
+
+Please note that ryshttpd was written for authors own needs. It can be buggy,
+glitchy or not working for you as you'd expected. There is still a field for improvements.
+
+-- Rys, 10Feb2018.

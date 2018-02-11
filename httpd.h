@@ -265,8 +265,6 @@ void rh_free(void *p);
 #define pfree(p) do { rh_free(p); p = NULL; } while (0)
 size_t rh_szalloc(const void *p);
 
-void rh_getrandom(void *buf, size_t size);
-
 rh_yesno isnum(const char *s, int sign);
 
 #define PATH_IS_FILE 1

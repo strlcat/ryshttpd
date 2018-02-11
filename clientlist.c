@@ -28,32 +28,17 @@
 
 #include "httpd.h"
 
+#define CLIENT_DELETED ((pid_t)-1)
+
 struct clinfo;
 struct clinfo {
 	struct clinfo *next; /* linked list */
 	pid_t clpid; /* it's pid */
 	int logfd; /* the fd referring to logging device */
-	char *ipaddr; /* ip address */
+	char ipaddr[INET6_ADDRSTRLEN]; /* ip address */
 };
 
 static struct clinfo *cli_head;
-
-void add_client(pid_t pid, int logfd, const char *ipaddr)
-{
-	struct clinfo *t, *c;
-
-	t = rh_malloc(sizeof(struct clinfo));
-	t->clpid = pid;
-	t->logfd = logfd;
-	t->ipaddr = rh_strdup(ipaddr);
-
-	if (!cli_head) cli_head = t;
-	else {
-		c = cli_head;
-		while (c->next) c = c->next;
-		c->next = t;
-	}
-}
 
 static struct clinfo *find_client_pid(pid_t pid)
 {
@@ -68,28 +53,17 @@ static struct clinfo *find_client_pid(pid_t pid)
 	return c;
 }
 
-int get_client_logfd(pid_t pid)
-{
-	struct clinfo *p;
-
-	p = find_client_pid(pid);
-	if (p) return p->logfd;
-	return -1;
-}
-
-#define DELETE_CLIENT(p) do {		\
-		pfree(p->ipaddr);	\
-		pfree(p);		\
-	} while (0)
-void delete_client(pid_t pid)
+static void reap_dead_clients(void)
 {
 	struct clinfo *p, *c, *t;
 
-	p = find_client_pid(pid);
-	if (p) {
+	while (1) {
+		p = find_client_pid(CLIENT_DELETED);
+		if (!p) break;
+
 		if (p == cli_head) { /* @start-> */
 			cli_head = p->next;
-			DELETE_CLIENT(p);
+			pfree(p);
 		}
 		else if (!p->next) { /* ->end<! */
 			c = cli_head;
@@ -100,7 +74,7 @@ void delete_client(pid_t pid)
 			}
 			if (t) t->next = NULL;
 			if (c == cli_head) cli_head = NULL;
-			DELETE_CLIENT(c);
+			pfree(c);
 		}
 		else { /* ->somewhere-> */
 			c = cli_head;
@@ -111,12 +85,47 @@ void delete_client(pid_t pid)
 			if (c) {
 				t = c->next;
 				c->next = t->next;
-				DELETE_CLIENT(t);
+				pfree(t);
 			}
 		}
 	}
 }
-#undef DELETE_CLIENT
+
+void add_client(pid_t pid, int logfd, const char *ipaddr)
+{
+	struct clinfo *t, *c;
+
+	reap_dead_clients();
+
+	t = rh_malloc(sizeof(struct clinfo));
+	t->clpid = pid;
+	t->logfd = logfd;
+	rh_strlcpy(t->ipaddr, ipaddr, INET6_ADDRSTRLEN);
+
+	if (!cli_head) cli_head = t;
+	else {
+		c = cli_head;
+		while (c->next) c = c->next;
+		c->next = t;
+	}
+}
+
+int get_client_logfd(pid_t pid)
+{
+	struct clinfo *p;
+
+	p = find_client_pid(pid);
+	if (p) return p->logfd;
+	return -1;
+}
+
+void delete_client(pid_t pid)
+{
+	struct clinfo *p;
+
+	p = find_client_pid(pid);
+	if (p) p->clpid = CLIENT_DELETED;
+}
 
 size_t count_clients(const char *ipaddr)
 {
@@ -137,6 +146,7 @@ size_t count_clients(const char *ipaddr)
 	c = cli_head;
 	cnt = 0;
 	while (c) {
+		if (c->clpid == CLIENT_DELETED) goto _next;
 		if (do_ipv6) {
 			if (rh_addr_type(c->ipaddr) != AF_INET6) goto _plain;
 			if (rh_parse_addr(c->ipaddr, &addr) == NO)
@@ -147,7 +157,7 @@ size_t count_clients(const char *ipaddr)
 		else {
 _plain:			if (!strcmp(c->ipaddr, ipaddr)) cnt++;
 		}
-		c = c->next;
+_next:		c = c->next;
 	}
 
 	return cnt;

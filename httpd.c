@@ -875,7 +875,10 @@ _tryssrd:			if (setsockopt(logpipe[0], SOL_SOCKET, SO_RCVBUF,
 
 		/* The rest is protoindependent code, and client E.P. */
 		pid = fork();
-		if (pid == -1) xerror("fork failed");
+		if (pid == -1) {
+			rh_perror("fork failed");
+			goto _drop_client;
+		}
 
 		if (pid == 0) {
 			close(sv4fd);
@@ -930,8 +933,7 @@ _tryssrd:			if (setsockopt(logpipe[0], SOL_SOCKET, SO_RCVBUF,
 			}
 			else add_client(pid, -1, clinfo->ipaddr);
 
-_drop_client:
-			pfree(clinfo->sockaddr);
+_drop_client:		pfree(clinfo->sockaddr);
 			pfree(clinfo->ipaddr);
 			pfree(clinfo->port);
 			close(clinfo->clfd);

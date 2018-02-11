@@ -349,7 +349,9 @@ char *regex_error(const void *regex);
 void regex_xexits(const void *regex);
 void regex_free(void *regex);
 
+rh_yesno getsdate_r(time_t t, const char *fmt, rh_yesno gmt, char *str, size_t szstr);
 char *getsdate(time_t t, const char *fmt, rh_yesno gmt);
+time_t getdatetime_r(char *date, size_t szdate, const char *fmt);
 time_t getdatetime(char **date, const char *fmt);
 
 uid_t uidbyname(const char *name);

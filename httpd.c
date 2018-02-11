@@ -206,22 +206,20 @@ static void logrotate_on_signal(int sig)
 {
 	block_signals(YES, (int []){SIGHUP, SIGCHLD, 0});
 
-	getdatetime(&rh_logfile, rh_logfile_fmt);
+	getdatetime_r(rh_logfile, RH_ALLOC_MAX, rh_logfile_fmt);
 
 	if (svlogfd != 1) close(svlogfd);
 	svlogfd = open(rh_logfile, O_CREAT|O_WRONLY|O_APPEND, 0600);
 	if (svlogfd == -1) {
 		rh_perror("logrotate to %s failed, redirecting to stdout", rh_logfile);
 		svlogfd = 1;
-		pfree(rh_logfile);
-		rh_logfile = rh_strdup("<stdout>");
+		rh_strlcpy(rh_logfile, "<stdout>", RH_ALLOC_MAX);
 	}
 	if (rh_fcntl(svlogfd, F_SETFD, FD_CLOEXEC, YES) == -1) {
 		rh_perror("logrotate: setting CLOEXEC on %s, redirecting to stdout", rh_logfile);
 		if (svlogfd != 1) close(svlogfd);
 		svlogfd = 1;
-		pfree(rh_logfile);
-		rh_logfile = rh_strdup("<stdout>");
+		rh_strlcpy(rh_logfile, "<stdout>", RH_ALLOC_MAX);
 	}
 
 	block_signals(NO, (int []){SIGHUP, SIGCHLD, 0});
@@ -292,6 +290,7 @@ int main(int argc, char **argv)
 	rh_nhcgi_execs = rh_strdup(RH_DEFAULT_NHCGI_EXECS);
 	rh_cgieh_execs = rh_strdup(RH_DEFAULT_CGIEH_EXECS);
 	rh_cgi_path = rh_strdup(RH_DEFAULT_CGI_PATH);
+	rh_logfile = rh_malloc(RH_ALLOC_MAX);
 	rh_logfmt = rh_strdup(RH_DEFAULT_LOG_FORMAT);
 
 	while ((c = getopt(argc, argv, "hr:4Ip:P:T:l:O:FV")) != -1) {
@@ -491,11 +490,11 @@ int main(int argc, char **argv)
 	if (rh_logfile_fmt) {
 		svlogln = rh_malloc(log_bufsize);
 		if (!strcmp(rh_logfile_fmt, "-")) {
-			rh_logfile = rh_strdup("<stdout>");
+			rh_strlcpy(rh_logfile, "<stdout>", RH_ALLOC_MAX);
 			svlogfd = 1;
 		}
 		else {
-			getdatetime(&rh_logfile, rh_logfile_fmt);
+			getdatetime_r(rh_logfile, RH_ALLOC_MAX, rh_logfile_fmt);
 			svlogfd = open(rh_logfile, O_CREAT|O_WRONLY|O_APPEND, 0600);
 			if (svlogfd == -1) xerror("%s", rh_logfile);
 			if (rh_fcntl(svlogfd, F_SETFD, FD_CLOEXEC, YES) == -1)

@@ -28,30 +28,50 @@
 
 #include "httpd.h"
 
-char *getsdate(time_t t, const char *fmt, rh_yesno gmt)
+rh_yesno getsdate_r(time_t t, const char *fmt, rh_yesno gmt, char *str, size_t szstr)
 {
-	char *r;
-	size_t rn;
 	struct tm *tmnow;
-
-	rn = 64;
-	r = rh_malloc(rn);
 
 	if (!fmt) fmt = "%c";
 	tmnow = (gmt == YES) ? gmtime(&t) : localtime(&t);
 	if (!tmnow) {
-		rh_asprintf(&r, (gmt == YES) ?
+		rh_snprintf(str, szstr, (gmt == YES) ?
 			  "(gmtime error: %s)" : "(localtime error: %s)", rh_strerror(errno));
-		return r;
+		return YES;
 	}
-_again:	if (strftime(r, rn, fmt, tmnow) == 0) {
-		rn += 64;
+	if (strftime(str, szstr, fmt, tmnow) == 0) return NO;
+
+	return YES;
+}
+
+char *getsdate(time_t t, const char *fmt, rh_yesno gmt)
+{
+	char *r;
+	size_t rn;
+
+	rn = RH_ALLOC_SMALL;
+	r = rh_malloc(rn);
+_again:	if (getsdate_r(t, fmt, gmt, r, rn) == NO) {
+		rn += RH_ALLOC_SMALL;
+		if (rn > RH_XSALLOC_MAX) {
+			rh_asprintf(&r, "(getsdate: memory limit exceeded)");
+			shrink_dynstr(&r);
+			return r;
+		}
 		r = rh_realloc(r, rn);
 		goto _again;
 	}
 
 	shrink_dynstr(&r);
 	return r;
+}
+
+time_t getdatetime_r(char *date, size_t szdate, const char *fmt)
+{
+	time_t t = time(NULL);
+
+	if (getsdate_r(t, fmt, NO, date, szdate) == NO) return 0;
+	return t;
 }
 
 time_t getdatetime(char **date, const char *fmt)

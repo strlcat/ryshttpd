@@ -1215,7 +1215,11 @@ _skipexec:		goto _done;
 				goto _done;
 			}
 
+#ifdef O_LARGEFILE
 			clstate->file_fd = open(clstate->realpath, O_RDONLY | O_LARGEFILE);
+#else
+			clstate->file_fd = open(clstate->realpath, O_RDONLY);
+#endif
 			if (clstate->file_fd == -1) { /* not permitted for some reason */
 				response_error(clstate, 403);
 				goto _done;

@@ -12,7 +12,7 @@ DEFMIME(".*\\.py",		"text/x-script.python")
 DEFMIME(".*\\.py(c|o)",		"application/x-bytecode.python")
 DEFMIME(".*\\.t(cl|k)",		"text/x-tcl")
 DEFMIME(".*\\.p(hp|html)(|s|[0-9]{,2})",	"text/x-php")
-DEFMIME(".*\\.asp(|x))",	"text/asp")
+DEFMIME(".*\\.asp(|x)",		"text/asp")
 DEFMIME(".*\\.(pas|dpr)",	"text/pascal")
 
 DEFMIME(".*\\.gif",		"image/gif")

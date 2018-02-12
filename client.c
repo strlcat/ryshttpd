@@ -558,7 +558,7 @@ _malformed:
 		clstate->method = REQ_METHOD_POST;
 	}
 	else {
-		response_error(clstate, 501); /* sorry, not implemented */
+		response_error(clstate, 400);
 		goto _done;
 	}
 

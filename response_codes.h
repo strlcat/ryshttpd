@@ -9,4 +9,3 @@
 { .status = 410, .response = "410 Gone", },
 { .status = 416, .response = "416 Requested Range Not Satisfiable", },
 { .status = 500, .response = "500 Internal Server Error", },
-{ .status = 501, .response = "501 Not Implemented", },

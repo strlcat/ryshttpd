@@ -252,6 +252,105 @@ _ratelimit_down:	clstate->clinfo->ralimitdown.total = rh_str_human_fsize(d, &t);
 			continue;
 		}
 
+		else if (!strcasecmp(s, "matchip")) {
+			char *dpath;
+
+_matchip:		t = strchr(d, ' ');
+			if (!t) continue;
+			*t = 0; t++;
+
+			unquote(d, strlen(d)+1);
+			if (!strcasecmp(d, "any")) goto _do_matchip;
+
+			if (rh_parse_addr(d, &net) == NO) continue;
+			if (rh_parse_addr(clstate->ipaddr, &addr) == NO) continue;
+			if (rh_match_addr(&net, &addr) == NO) continue;
+
+_do_matchip:		dpath = rh_strdup(t);
+			unquote(dpath, rh_szalloc(dpath));
+			if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("return ");
+				goto _return;
+			}
+			else if (!strncmp(dpath, "header ", CSTR_SZ("header "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("header ");
+				goto _header;
+			}
+			else if (!strncmp(dpath, "redirect ", CSTR_SZ("redirect "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("redirect ");
+				goto _redirect;
+			}
+			else if (!strncmp(dpath, "movedto ", CSTR_SZ("movedto "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("movedto ");
+				goto _movedto;
+			}
+			else if (!strncmp(dpath, "deny ", CSTR_SZ("deny "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("deny ");
+				goto _deny;
+			}
+			else if (!strncmp(dpath, "allow ", CSTR_SZ("allow "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("allow ");
+				goto _allow;
+			}
+			else if (!strncmp(dpath, "noindex ", CSTR_SZ("noindex "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("noindex ");
+				goto _noindex;
+			}
+			else if (!strncmp(dpath, "ratelimit ", CSTR_SZ("ratelimit "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("ratelimit ");
+				goto _ratelimit;
+			}
+			else if (!strncmp(dpath, "ratelimit_up ", CSTR_SZ("ratelimit_up "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("ratelimit_up ");
+				goto _ratelimit_up;
+			}
+			else if (!strncmp(dpath, "ratelimit_down ", CSTR_SZ("ratelimit_down "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("ratelimit_down ");
+				goto _ratelimit_down;
+			}
+			else if (!strncmp(dpath, "rewrite ", CSTR_SZ("rewrite "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("rewrite ");
+				goto _rewrite;
+			}
+			else {
+				pfree(dpath);
+				continue;
+			}
+		}
+
 		else if (!strcasecmp(s, "rewrite")) {
 			void *rgx;
 			char *ss, *dd, *tt, *dpath, *pat, *rwr;
@@ -259,13 +358,10 @@ _ratelimit_down:	clstate->clinfo->ralimitdown.total = rh_str_human_fsize(d, &t);
 			rh_yesno f, F;
 			size_t l;
 
-			/*
+_rewrite:		/*
 			 * WARNING! The rewrite stuff is hacky -- expect bugs, hangs and glitches.
 			 * YOU HAVE BEEN WARNED.
 			 */
-
-			/* prevent recursion */
-			if (clstate->was_rewritten == YES) continue;
 
 			/* d == what */
 			t = strchr(d, ' ');
@@ -312,6 +408,10 @@ _ratelimit_down:	clstate->clinfo->ralimitdown.total = rh_str_human_fsize(d, &t);
 					rh_astrcat(&dpath, clstate->ipaddr);
 				else if (!strcmp(ss, "clinfo_ipaddr"))
 					rh_astrcat(&dpath, clstate->clinfo->ipaddr);
+				else if (!strcmp(ss, "clinfo_port"))
+					rh_astrcat(&dpath, clstate->clinfo->port);
+				else if (!strcmp(ss, "clinfo_servport"))
+					rh_astrcat(&dpath, clstate->clinfo->servport);
 				else if (!strcmp(ss, "clinfo_af")) {
 					switch (clstate->clinfo->af) {
 						case AF_INET: rh_astrcat(&dpath, "IPv4"); break;
@@ -476,6 +576,13 @@ _addit:					rh_astrcat(&dpath, ss);
 					d = dpath+CSTR_SZ("ratelimit_down ");
 					goto _ratelimit_down;
 				}
+				else if (!strncmp(dpath, "matchip ", CSTR_SZ("matchip "))) {
+					pfree(ln);
+					ln = dpath;
+					s = dpath;
+					d = dpath+CSTR_SZ("matchip ");
+					goto _matchip;
+				}
 
 				p = strchr(dpath, '?');
 				if (p) {
@@ -518,8 +625,6 @@ _addit:					rh_astrcat(&dpath, ss);
 				}
 
 				r = HTA_REWRITE;
-				/* prevent recursive hang if someone rewrites to itself */
-				clstate->was_rewritten = YES;
 				goto _done;
 			}
 			regex_free(rgx);

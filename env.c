@@ -73,6 +73,7 @@ void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_st
 	APPEND_FSA(tfsa, nr_tfsa, "clinfo_af", 0, "%s", s);
 	APPEND_FSA(tfsa, nr_tfsa, "clinfo_ipaddr", 0, "%s", clinfo->ipaddr); /* always real one */
 	APPEND_FSA(tfsa, nr_tfsa, "clinfo_port", 0, "%s", clinfo->port);
+	APPEND_FSA(tfsa, nr_tfsa, "clinfo_servport", 0, "%s", clinfo->servport);
 	APPEND_FSA(tfsa, nr_tfsa, "client_ipaddr", 0, "%s", clstate->ipaddr); /* <-- use this */
 #ifdef WITH_TLS
 	APPEND_FSA(tfsa, nr_tfsa, "client_proto", 0, "%s", clinfo->cltls ? "https" : "http");

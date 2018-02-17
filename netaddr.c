@@ -40,6 +40,8 @@ rh_yesno rh_parse_addr(const char *addr, struct netaddr *na)
 	int type;
 	char *s;
 
+	rh_memzero(na, sizeof(struct netaddr));
+
 	type = rh_addr_type(addr);
 	if (!type) return NO;
 	na->type = type;

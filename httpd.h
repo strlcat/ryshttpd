@@ -203,6 +203,7 @@ struct client_info {
 	socklen_t sockaddrlen; /* length of sockaddr structure */
 	char *ipaddr; /* resolved numeric ip address */
 	char *port; /* remote client port number */
+	char *servport; /* server port that accepted connection */
 };
 
 typedef void (*rh_exit_cb)(int);
@@ -328,6 +329,7 @@ int rh_asprintf(char **s, const char *fmt, ...);
 rh_yesno getxchr(char *chr, const char *s);
 void parse_escapes(char *str, size_t n);
 size_t filter_dotdots(char *str, size_t strsz);
+void unquote(char *str, size_t strsz);
 
 void urldecode(char *str, size_t n);
 char *urlencode(const char *str);
@@ -530,7 +532,6 @@ struct client_state {
 	rh_yesno is_exec; /* if file, will it be executed? */
 	rh_yesno is_rsrc; /* it was a fake file: internal resource. */
 	rh_yesno is_indx; /* set if was redirected by index regexmatch */
-	rh_yesno was_rewritten; /* the clstate passed htaccess' rewrite rule in the past */
 	rh_yesno noindex; /* htaccess forbids to index this directory */
 	int cgi_mode; /* CGI mode of operation: regular, NoHeaders */
 	void *workbuf; /* response IO: temporary to read into */

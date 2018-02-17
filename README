@@ -177,6 +177,10 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	Rewriting to internal resources is permitted too. FS lookups are restarted for
 	single matched rewrite. Note that rewrite is NOT recursive at this time!
 	Quotes surrounding pattern and destination are mandatory.
+"matchip netaddr htaccess_cmd": match client IP address by specified netaddr subnetwork,
+	then execute any htaccess_cmd htaccess command listed above. The command permits
+	executing rewrite rule. Also, rewrite rule permits executing matchip command.
+	They even can go recursively.
 
 Comments are supported, but only at the beginning of the line.
 Inline comments starting after a config item are NOT supported.

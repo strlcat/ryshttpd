@@ -344,3 +344,14 @@ size_t filter_dotdots(char *str, size_t strsz)
 
 	return n;
 }
+
+void unquote(char *str, size_t strsz)
+{
+	size_t n = strnlen(str, strsz);
+
+	if (n < 2) return;
+	if (n && !(*str == '"' && *(str+n-1) == '"')) return;
+
+	*(str+n-1) = 0;
+	memmove(str, str+1, n-1);
+}

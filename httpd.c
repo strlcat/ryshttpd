@@ -724,6 +724,9 @@ _v4init:
 			clinfo->sockaddrlen = sizeof(struct sockaddr_in);
 			clinfo->sockaddr = rh_malloc(sizeof(struct sockaddr_in));
 
+			/* Fill server port number */
+			clinfo->servport = rh_strdup(rh_port_s);
+
 			/* Accept connection fd */
 			clinfo->clfd = accept(sv4fd,
 				(struct sockaddr *)clinfo->sockaddr, &clinfo->sockaddrlen);
@@ -740,6 +743,9 @@ _v4init:
 			/* Preallocate things for accept call */
 			clinfo->sockaddrlen = sizeof(struct sockaddr_in6);
 			clinfo->sockaddr = rh_malloc(sizeof(struct sockaddr_in6));
+
+			/* Fill server port number */
+			clinfo->servport = rh_strdup(rh_port_s);
 
 			/* Accept connection fd */
 			clinfo->clfd = accept(sv6fd,
@@ -758,6 +764,9 @@ _v4init:
 			/* Preallocate things for accept call */
 			clinfo->sockaddrlen = sizeof(struct sockaddr_in);
 			clinfo->sockaddr = rh_malloc(sizeof(struct sockaddr_in));
+
+			/* Fill TLS server port number */
+			clinfo->servport = rh_strdup(rh_tlsport_s);
 
 			/* Accept connection fd */
 			clinfo->clfd = accept(sv4tlsfd,
@@ -778,6 +787,9 @@ _v4init:
 			/* Preallocate things for accept call */
 			clinfo->sockaddrlen = sizeof(struct sockaddr_in6);
 			clinfo->sockaddr = rh_malloc(sizeof(struct sockaddr_in6));
+
+			/* Fill TLS server port number */
+			clinfo->servport = rh_strdup(rh_tlsport_s);
 
 			/* Accept connection fd */
 			clinfo->clfd = accept(sv6tlsfd,
@@ -935,6 +947,7 @@ _tryssrd:			if (setsockopt(logpipe[0], SOL_SOCKET, SO_RCVBUF,
 _drop_client:		pfree(clinfo->sockaddr);
 			pfree(clinfo->ipaddr);
 			pfree(clinfo->port);
+			pfree(clinfo->servport);
 			close(clinfo->clfd);
 			pfree(clinfo);
 		}

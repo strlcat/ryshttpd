@@ -177,6 +177,9 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	Rewriting to internal resources is permitted too. FS lookups are restarted for
 	single matched rewrite. Note that rewrite is NOT recursive at this time!
 	Quotes surrounding pattern and destination are mandatory.
+"rematch spec pattern destination": same as "rewrite", but works recursively.
+	CAUTION: improperly or vulnerable rematch rules may hang your httpd child
+	into a infinite loop! You must think three times before placing one.
 "matchip netaddr htaccess_cmd": match client IP address by specified netaddr subnetwork,
 	then execute any htaccess_cmd htaccess command listed above. The command permits
 	executing rewrite rule. Also, rewrite rule permits executing matchip command.
@@ -285,6 +288,8 @@ supplied data, it is to be sure that there was no violation from the client side
 
 Regex machine permit you to build more sophisticated rules, not only examples I provided here.
 It must be unlimited in ryshttpd, so you're free to implement as much as complex rules.
+
+There is also recursive rewrite available. Just use "rematch" instead of "rewrite" keyword.
 
 HTUPLOAD
 

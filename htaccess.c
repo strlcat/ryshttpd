@@ -345,13 +345,22 @@ _do_matchip:		dpath = rh_strdup(t);
 				d = dpath+CSTR_SZ("rewrite ");
 				goto _rewrite;
 			}
+			else if (!strncmp(dpath, "rematch ", CSTR_SZ("rematch "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("rematch ");
+				goto _rewrite;
+			}
 			else {
 				pfree(dpath);
 				continue;
 			}
 		}
 
-		else if (!strcasecmp(s, "rewrite")) {
+		else if (!strcasecmp(s, "rewrite")
+		|| !strcasecmp(s, "rematch")) {
+			rh_yesno do_single_rwr;
 			void *rgx;
 			char *ss, *dd, *tt, *dpath, *pat, *rwr;
 			size_t dpathsz;
@@ -362,6 +371,12 @@ _rewrite:		/*
 			 * WARNING! The rewrite stuff is hacky -- expect bugs, hangs and glitches.
 			 * YOU HAVE BEEN WARNED.
 			 */
+
+			if (!strcasecmp(s, "rewrite")) do_single_rwr = YES;
+			else do_single_rwr = NO;
+
+			/* single rewrite rule was processed already before */
+			if (do_single_rwr == YES && clstate->was_rewritten == YES) continue;
 
 			/* d == what */
 			t = strchr(d, ' ');
@@ -625,6 +640,8 @@ _addit:					rh_astrcat(&dpath, ss);
 				}
 
 				r = HTA_REWRITE;
+				/* If single rule, then mark as such */
+				if (do_single_rwr == YES) clstate->was_rewritten = YES;
 				goto _done;
 			}
 			regex_free(rgx);

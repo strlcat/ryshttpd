@@ -532,6 +532,7 @@ struct client_state {
 	rh_yesno is_exec; /* if file, will it be executed? */
 	rh_yesno is_rsrc; /* it was a fake file: internal resource. */
 	rh_yesno is_indx; /* set if was redirected by index regexmatch */
+	rh_yesno was_rewritten; /* single rewrite, without recursion, was matched before */
 	rh_yesno noindex; /* htaccess forbids to index this directory */
 	int cgi_mode; /* CGI mode of operation: regular, NoHeaders */
 	void *workbuf; /* response IO: temporary to read into */

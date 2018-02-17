@@ -256,6 +256,7 @@ static void reset_client_state(struct client_state *clstate)
 	clstate->is_exec = NO;
 	clstate->is_rsrc = NO;
 	clstate->is_indx = NO;
+	clstate->was_rewritten = NO;
 	clstate->noindex = NO;
 	clstate->cgi_mode = 0;
 	clstate->workbuf = NULL;

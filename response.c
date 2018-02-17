@@ -166,12 +166,7 @@ void response_error(struct client_state *clstate, int status)
 
 	rsp = find_response(status);
 	if (!rsp) rsp = find_response(500);
-	/* you just kidding don't you?? */
-	if (!rsp) xexits("FATAL: No such response code: %d", status);
-
 	rsrc = find_resource(RESTYPE_NAME, "error.html");
-	/* that's just bad if there is no std. error page embedded!! */
-	if (!rsrc) xexits("FATAL: ERROR resource must be there!!");
 
 	if (clstate->prepend_path) {
 		drsrc = clone_resource(rsrc);

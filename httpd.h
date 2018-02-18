@@ -159,6 +159,7 @@ extern unsigned int rh_client_ipv6_subnet;
 extern int rh_cgi_mode;
 extern rh_yesno rh_follow_symlinks;
 extern size_t rh_rdwr_bufsize;
+extern rh_yesno rh_issuper;
 
 extern void *rh_hostnames_rgx;
 extern void *rh_cgiexecs_rgx;
@@ -229,8 +230,6 @@ void rh_say(const char *fmt, ...);
 
 void block_signals(rh_yesno block, int *n);
 
-int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);
-
 struct fmtstr_args;
 
 #define APPEND_FSA(pfsa, pnr_fsa, sp, sz, sfmt, vdata)					\
@@ -267,6 +266,8 @@ void rh_free(void *p);
 size_t rh_szalloc(const void *p);
 
 rh_yesno isnum(const char *s, int sign);
+int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);
+rh_yesno is_writable(const char *path);
 
 #define PATH_IS_FILE 1
 #define PATH_IS_DIR  2
@@ -366,6 +367,7 @@ void *init_user_switch(
 	const char *groups);
 void user_switch_setid_policy(void *uswitch, rh_yesno nosetuid, rh_yesno nosetgid);
 void apply_user_switch(const void *uswitch);
+rh_yesno user_switch_issuper(const void *uswitch);
 void free_user_switch(void *uswitch);
 
 rh_fsize rh_fdsize(int fd);

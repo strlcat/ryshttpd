@@ -1547,7 +1547,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 
 			if (!strcmp(de->d_name, ".")
 			|| !strcmp(de->d_name, "..")
-			|| !strcmp(de->d_name, rh_htaccess_name)) continue;
+			|| strstr(de->d_name, rh_htaccess_name)) continue;
 
 			/* Nobody wants to see useless errors, just hide them away */
 			if (stat(de->d_name, &stst) == -1) continue;

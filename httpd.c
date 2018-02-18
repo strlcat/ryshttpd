@@ -79,6 +79,7 @@ static rh_yesno ipv4_only;
 static rh_yesno do_logrotate;
 static rh_yesno drop_setuid;
 static rh_yesno drop_setgid;
+rh_yesno rh_issuper;
 #ifdef WITH_TLS
 char *rh_tlsport_s;
 static char *rh_tls_certf;
@@ -671,6 +672,7 @@ _v4init:
 		}
 
 		user_switch_setid_policy(usw, drop_setuid, drop_setgid);
+		rh_issuper = user_switch_issuper(usw);
 		apply_user_switch(usw);
 		free_user_switch(usw);
 	}
@@ -922,6 +924,7 @@ _tryssrd:			if (setsockopt(logpipe[0], SOL_SOCKET, SO_RCVBUF,
 				}
 
 				user_switch_setid_policy(usw, drop_setuid, drop_setgid);
+				rh_issuper = user_switch_issuper(usw);
 				apply_user_switch(usw);
 				free_user_switch(usw);
 			}

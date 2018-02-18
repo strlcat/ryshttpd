@@ -219,6 +219,13 @@ void apply_user_switch(const void *uswitch)
 		&& setreuid(usw->targ_uid, usw->targ_euid) == -1) xerror("setreuid");
 }
 
+rh_yesno user_switch_issuper(const void *uswitch)
+{
+	const struct user_switch *usw = uswitch;
+
+	return (usw->targ_euid == 0 || usw->targ_uid == 0);
+}
+
 void free_user_switch(void *uswitch)
 {
 	struct user_switch *usw = uswitch;

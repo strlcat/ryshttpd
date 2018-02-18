@@ -35,7 +35,7 @@ rh_yesno is_htaccess(const char *path)
 
 	s = rh_strdup(path);
 	d = basename(s);
-	if (!strcmp(d, rh_htaccess_name)) retn(YES);
+	if (strstr(d, rh_htaccess_name)) retn(YES);
 
 	retn(NO);
 }
@@ -98,6 +98,11 @@ static int htaccess_single(struct client_state *clstate, const char *htadir, con
 	s = NULL;
 	rh_asprintf(&s, "%s/%s", htadir, rh_htaccess_name);
 	if (file_or_dir(s) != PATH_IS_FILE) {
+		pfree(s);
+		return 0;
+	}
+
+	if (rh_issuper == NO && is_writable(s)) {
 		pfree(s);
 		return 0;
 	}

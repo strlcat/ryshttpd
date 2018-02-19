@@ -48,7 +48,9 @@ rh_yesno io_stream_file(struct io_stream_args *ios_args)
 	size_t ld, lr, lb, li;
 	rh_yesno do_stop = NO;
 
-	if (!ios_args) {
+	if (!ios_args) return NO;
+
+	if (!ios_args->rdfn || !ios_args->wrfn || !ios_args->skfn) {
 		ios_args->error = EINVAL;
 		return NO;
 	}
@@ -63,8 +65,7 @@ rh_yesno io_stream_file(struct io_stream_args *ios_args)
 			ios_args->start_from = 0;
 
 		if (ios_args->start_from > 0) {
-			if (lseek(ios_args->from_fd,
-			(off_t)ios_args->start_from, SEEK_SET) == -1) {
+			if (ios_args->skfn(ios_args->fn_args, ios_args->start_from) == NOFSIZE) {
 				ios_args->error = errno;
 				ios_args->status = IOS_SEEK_ERROR;
 				return NO;
@@ -80,9 +81,7 @@ rh_yesno io_stream_file(struct io_stream_args *ios_args)
 		pblk = ios_args->workbuf;
 		ld = 0;
 		lr = lb = BLK_LEN_ADJ(total_to_read, ios_args->nr_written, ios_args->wkbufsz);
-_ragain:	li = ios_args->rdfn ?
-			ios_args->rdfn(ios_args->rdwr_data, pblk, lr)
-			: (size_t)read(ios_args->from_fd, pblk, lr);
+_ragain:	li = ios_args->rdfn(ios_args->fn_args, pblk, lr);
 		if (li == 0) do_stop = YES;
 		if (li == NOSIZE) {
 			ios_args->error = errno;
@@ -99,9 +98,7 @@ _ragain:	li = ios_args->rdfn ?
 		pblk = ios_args->workbuf;
 		lr = ld;
 		ld = 0;
-_wagain:	li = ios_args->wrfn ?
-			ios_args->wrfn(ios_args->rdwr_data, pblk, lr)
-			: (size_t)write(ios_args->to_fd, pblk, lr);
+_wagain:	li = ios_args->wrfn(ios_args->fn_args, pblk, lr);
 		if (li == NOSIZE) {
 			ios_args->error = errno;
 			ios_args->status = IOS_WRITE_ERROR;

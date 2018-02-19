@@ -125,29 +125,42 @@ static size_t read_raw_request(
 	return 0;
 }
 
-static size_t do_send_file_writer(void *clinfo, const void *data, size_t szdata)
+static size_t do_stream_file_reader(void *clstate, void *data, size_t szdata)
 {
-	return io_send_data((struct client_info *)clinfo, data, szdata, YES, NO);
+	struct client_state *uclstate = clstate;
+	return io_read_data(uclstate->file_fd, data, szdata, YES, NULL);
 }
 
-static void do_send_file(struct client_state *clstate)
+static size_t do_stream_file_writer(void *clstate, const void *data, size_t szdata)
+{
+	struct client_state *uclstate = clstate;
+	return io_send_data(uclstate->clinfo, data, szdata, YES, NO);
+}
+
+static rh_fsize do_stream_file_seeker(void *clstate, rh_fsize offset)
+{
+	struct client_state *uclstate = clstate;
+	return (rh_fsize)lseek(uclstate->file_fd, (off_t)offset, SEEK_SET);
+}
+
+static void do_stream_file(struct client_state *clstate)
 {
 	struct io_stream_args ios_args;
 	rh_yesno status;
 
 	rh_memzero(&ios_args, sizeof(struct io_stream_args));
 
-	ios_args.from_fd = clstate->file_fd;
-	ios_args.to_fd = clstate->clinfo->clfd;
+	ios_args.fn_args = clstate;
+	ios_args.rdfn = do_stream_file_reader;
+	ios_args.wrfn = do_stream_file_writer;
+	ios_args.skfn = do_stream_file_seeker;
+
 	ios_args.workbuf = clstate->workbuf;
 	ios_args.wkbufsz = clstate->wkbufsz;
 
 	ios_args.file_size = clstate->filesize;
 	ios_args.start_from = clstate->range_start;
 	ios_args.read_to = clstate->range_end;
-
-	ios_args.rdwr_data = clstate->clinfo;
-	ios_args.wrfn = do_send_file_writer;
 
 	status = io_stream_file(&ios_args);
 
@@ -1396,8 +1409,8 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 
 			if (clstate->method == REQ_METHOD_HEAD) goto _no_send;
 
-			/* actually send a file/partial file data, anything is inside clstate */
-			do_send_file(clstate);
+			/* actually stream a file/partial file data, anything is inside clstate */
+			do_stream_file(clstate);
 
 _no_send:		/*
 			 * Close the file.

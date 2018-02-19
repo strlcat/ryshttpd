@@ -87,9 +87,8 @@ enum { NO, YES };
 #define NOSIZE  ((size_t)-1) /* NOt a SIZE */
 #define NOFSIZE ((rh_fsize)-1) /* NOt a FileSIZE */
 
-#define RH_MEMPOOL_SZ (131072+32768) /* preallocate at startup */
+#define RH_XSALLOC_MAX 262144 /* max. amount of memory to scan */
 #define RH_CLIENT_READ_SZ 32768 /* temporary to read request into, and IO pool */
-#define RH_XSALLOC_MAX (RH_MEMPOOL_SZ-RH_CLIENT_READ_SZ) /* max. amount of memory to scan */
 #define RH_ALLOC_MAX 4096 /* usual max allocation size of single object like string */
 #define RH_ALLOC_SMALL 128 /* small objects preallocation size limit */
 
@@ -388,13 +387,13 @@ rh_fsize rh_str_human_fsize(const char *s, char **stoi);
 
 typedef size_t (*io_read_fn)(void *, void *, size_t);
 typedef size_t (*io_write_fn)(void *, const void *, size_t);
+typedef rh_fsize (*io_seek_fn)(void *, rh_fsize);
 
 struct io_stream_args {
-	int from_fd; /* from who? */
-	int to_fd; /* copy to this */
-	void *rdwr_data; /* or do IO based on wrappers */
-	io_read_fn rdfn; /* read wrapper */
-	io_write_fn wrfn; /* write wrapper */
+	io_read_fn rdfn; /* reading function pointer */
+	io_write_fn wrfn; /* writing function pointer */
+	io_seek_fn skfn; /* seeking function pointer */
+	void *fn_args; /* data required for functions above */
 	void *workbuf; /* temporary rw buffer */
 	size_t wkbufsz; /* size of workbuf */
 	rh_fsize file_size; /* file size, to verify */

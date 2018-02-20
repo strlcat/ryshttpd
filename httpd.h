@@ -105,7 +105,7 @@ enum { NO, YES };
 	} while (0)
 
 #define HTTP_DATE_FMT "%a, %d %b %Y %H:%M:%S GMT"
-#define LIST_DATE_FMT "%a, %d %b %Y, %H:%M:%S"
+#define LIST_DATE_FMT "%H:%M:%S %d%b%Y"
 #define HTTP_REQUEST_MAX 4096
 #define HTTP_REQHEAD_MAX 2048
 
@@ -382,8 +382,6 @@ rh_fsize rh_str_human_fsize(const char *s, char **stoi);
 #define IOS_READ_ERROR	1
 #define IOS_WRITE_ERROR	2
 #define IOS_SEEK_ERROR	3
-
-#define IOS_ERRORS_MAX (~0UL)
 
 typedef size_t (*io_read_fn)(void *, void *, size_t);
 typedef size_t (*io_write_fn)(void *, const void *, size_t);

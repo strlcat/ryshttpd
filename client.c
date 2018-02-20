@@ -935,41 +935,6 @@ _cgiserver:		tenvp = NULL;
 			/* Mark as executed CGI script */
 			clstate->is_exec = YES;
 
-			/* rh_cgi_headers: offload header generation to exec */
-			if (clstate->cgi_mode == CGI_MODE_REGULAR
-			|| clstate->cgi_mode == CGI_MODE_ENDHEAD) {
-				/*
-				 * well even if supported, you should activate header
-				 * generation offload or header appending and update
-				 * your CGI exec to do that.
-				 */
-				if (clstate->cgi_mode == CGI_MODE_REGULAR) {
-					add_header(&clstate->sendheaders, "Accept-Ranges", "none");
-					add_header(&clstate->sendheaders, "Content-Type", "text/html");
-					/* Tell to never cache. */
-					tell_never_cache(clstate);
-				}
-				/*
-				 * Sorry, I do not know how much content will be
-				 * written to you. Forcing Connection: close.
-				 * Note that CGI script acting as HTTP server
-				 * may do what it want with headers, including
-				 * leaving keep-alive state unchanged.
-				 */
-				clstate->is_keepalive = NO;
-				delete_header(&clstate->sendheaders, "Keep-Alive");
-				response_ok(clstate, 200,
-					(clstate->cgi_mode == CGI_MODE_REGULAR) ? YES : NO);
-				/*
-				 * just send out plain response and exit.
-				 * Nobody can say what the binary wanted to write.
-				 * But only when binary (script) is allowed to spit out
-				 * it's own headers (acting as a part of webserver).
-				 */
-				if (clstate->method == REQ_METHOD_HEAD)
-					goto _skipexec;
-			}
-
 			/* I was told that most http servers do this. */
 			wdir = rh_strdup(clstate->realpath);
 			d = strrchr(wdir, '/');
@@ -1158,6 +1123,32 @@ _pollagain:					if (poll(polldf, 1, -1) == -1) {
 						}
 					}
 
+					if (clstate->cgi_mode == CGI_MODE_REGULAR
+					|| clstate->cgi_mode == CGI_MODE_ENDHEAD) {
+						/*
+						 * well even if supported, you should activate header
+						 * generation offload or header appending and update
+						 * your CGI exec to do that.
+						 */
+						if (clstate->cgi_mode == CGI_MODE_REGULAR) {
+							add_header(&clstate->sendheaders, "Accept-Ranges", "none");
+							add_header(&clstate->sendheaders, "Content-Type", "text/html");
+							/* Tell to never cache. */
+							tell_never_cache(clstate);
+						}
+						/*
+						 * Sorry, I do not know how much content will be
+						 * written to you. Forcing Connection: close.
+						 * Note that CGI script acting as HTTP server
+						 * may do what it want with headers, including
+						 * leaving keep-alive state unchanged.
+						 */
+						clstate->is_keepalive = NO;
+						delete_header(&clstate->sendheaders, "Keep-Alive");
+						response_ok(clstate, 200,
+							(clstate->cgi_mode == CGI_MODE_REGULAR) ? YES : NO);
+					}
+
 					rh_memzero(polldf, sizeof(polldf));
 					polldf[0].fd = clinfo->clfd;
 					polldf[0].events = POLLIN;
@@ -1166,7 +1157,6 @@ _pollagain:					if (poll(polldf, 1, -1) == -1) {
 					while (1) {
 						if (poll(polldf, 2, -1) == -1) {
 							if (errno == EINTR) continue;
-							err = YES;
 							break;
 						}
 
@@ -1215,7 +1205,7 @@ _out:			destroy_argv(&tenvp);
 			}
 
 			/* done. */
-_skipexec:		goto _done;
+			goto _done;
 		}
 		/* send plain file or it's part */
 		else {

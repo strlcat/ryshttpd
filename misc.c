@@ -51,11 +51,7 @@ int rh_fcntl(int fd, int cmd, int flags, rh_yesno set)
 
 rh_yesno is_writable(const char *path)
 {
-	int fd;
-
-	errno = 0;
-	if (access(path, W_OK) == 0 && errno == 0) return YES;
-	fd = open(path, O_WRONLY);
+	int fd = open(path, O_WRONLY);
 	if (fd != -1) {
 		close(fd);
 		return YES;

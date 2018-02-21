@@ -894,16 +894,23 @@ _not_found:
 	}
 	/* direct file */
 	else if (clstate->filedir == PATH_IS_FILE) {
-		/* Verify user not requesting htaccess control file */
-		if (is_htaccess(clstate->realpath)) {
-			response_error(clstate, 403);
-			goto _done;
-		}
-		/* Verify the user has access */
+		/*
+		 * Verify the user has access.
+		 *
+		 * .htaccess rules may return other error code
+		 * for the is_htaccess test below. For example,
+		 * completely hide .htaccess files with rewrite.
+		 */
 		err = verify_htaccess(clstate, clstate->realpath, rh_root_dir);
 		if (err == HTA_REWRITE) goto _hta_rewrite;
 		if (err > 0) {
 			response_error(clstate, err);
+			goto _done;
+		}
+
+		/* Verify user not requesting htaccess control file */
+		if (is_htaccess(clstate->realpath)) {
+			response_error(clstate, 403);
 			goto _done;
 		}
 

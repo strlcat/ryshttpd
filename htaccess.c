@@ -246,6 +246,7 @@ _hideindex:		if (clstate->hideindex_rgx) {
 				clstate->hideindex_rgx = NULL;
 				continue;
 			}
+			if (t) rh_astrcat(&t, "|");
 			rh_astrcat(&t, d);
 			clstate->hideindex_rgx = regex_compile(t, NO, NO);
 			pfree(t);

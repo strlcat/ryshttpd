@@ -235,6 +235,30 @@ _noindex:		if (!strcasecmp(d, "yes") && !strcmp(htadir, path))
 			continue;
 		}
 
+		else if (!strcasecmp(s, "hideindex")) {
+_hideindex:		if (clstate->hideindex_rgx) {
+				t = regex_get_pattern(clstate->hideindex_rgx);
+				regex_free(clstate->hideindex_rgx);
+			}
+			else t = NULL;
+			if (!strcasecmp(d, "none")) {
+				pfree(t);
+				clstate->hideindex_rgx = NULL;
+				continue;
+			}
+			rh_astrcat(&t, d);
+			clstate->hideindex_rgx = regex_compile(t, NO, NO);
+			pfree(t);
+			if (regex_is_error(clstate->hideindex_rgx)) {
+				rh_esay("%s/%s hideindex: regex error %s",
+					htadir, rh_htaccess_name,
+					regex_error(clstate->hideindex_rgx));
+				regex_free(clstate->hideindex_rgx);
+				clstate->hideindex_rgx = NULL;
+			}
+			continue;
+		}
+
 		else if (!strcasecmp(s, "ratelimit")) {
 _ratelimit:		clstate->clinfo->ralimitup.total = rh_str_human_fsize(d, &t);
 			if (!str_empty(t)) clstate->clinfo->ralimitup.total = NOFSIZE;
@@ -321,6 +345,13 @@ _do_matchip:		dpath = rh_strdup(t);
 				s = dpath;
 				d = dpath+CSTR_SZ("noindex ");
 				goto _noindex;
+			}
+			else if (!strncmp(dpath, "hideindex ", CSTR_SZ("hideindex "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("hideindex ");
+				goto _hideindex;
 			}
 			else if (!strncmp(dpath, "ratelimit ", CSTR_SZ("ratelimit "))) {
 				pfree(ln);
@@ -574,6 +605,13 @@ _addit:					rh_astrcat(&dpath, ss);
 					s = dpath;
 					d = dpath+CSTR_SZ("noindex ");
 					goto _noindex;
+				}
+				else if (!strncmp(dpath, "hideindex ", CSTR_SZ("hideindex "))) {
+					pfree(ln);
+					ln = dpath;
+					s = dpath;
+					d = dpath+CSTR_SZ("hideindex ");
+					goto _hideindex;
 				}
 				else if (!strncmp(dpath, "ratelimit ", CSTR_SZ("ratelimit "))) {
 					pfree(ln);

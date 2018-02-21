@@ -269,8 +269,6 @@ static void reset_client_state(struct client_state *clstate)
 	clstate->is_exec = NO;
 	clstate->is_rsrc = NO;
 	clstate->is_indx = NO;
-	clstate->was_rewritten = NO;
-	clstate->noindex = NO;
 	clstate->cgi_mode = 0;
 	clstate->workbuf = NULL;
 	clstate->wkbufsz = 0;
@@ -282,6 +280,13 @@ static void reset_client_state(struct client_state *clstate)
 	clstate->iostate = 0;
 	clstate->ioerror = 0;
 	pfree(clstate->sendheaders);
+
+	clstate->was_rewritten = NO;
+	clstate->noindex = NO;
+	if (clstate->hideindex_rgx) {
+		regex_free(clstate->hideindex_rgx);
+		clstate->hideindex_rgx = NULL;
+	}
 
 	pfree(clstate->status);
 
@@ -1561,6 +1566,11 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 
 			/* Nobody wants to see useless errors, just hide them away */
 			if (stat(de->d_name, &stst) == -1) continue;
+
+			/* .htaccess hides these items away from listing. */
+			if (clstate->hideindex_rgx
+			&& regex_exec(clstate->hideindex_rgx, de->d_name) == YES)
+				continue;
 
 			entline = NULL;
 			mtime = getsdate(stst.st_mtime, LIST_DATE_FMT, NO);

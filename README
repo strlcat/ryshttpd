@@ -159,6 +159,13 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	set access mode so that http server cannot get file list for it.
 	This is just another way to disable directory indexing.
 	Note that this directive is NOT recursive: subdirectories will be indexed.
+"hideindex regex/none": hide these items from directory listings. regex specifies all the
+	patterns which files or directories must match to be hidden.
+	The patterns are recursive for child directories. They also implicitly inherited
+	through pattern string concatenation, but this inheritance may be turned off by first
+	specifying a "hideindex none" rule, then specifying overriding rule.
+	To hide files behind 404 error, you should write appropriate
+	rewrite/rematch rule based on req_path instead.
 "ratelimit number": limit network speed (rate), both upload and download, by this number.
 	The number may be specified as a raw number of bytes (for example, 1048576),
 	or as a simple, non fractioned, human readable number (for example, 80k).

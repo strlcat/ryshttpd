@@ -41,6 +41,17 @@ static void fixup_regex_pattern(char **s)
 	*(z+n+1) = '$';
 }
 
+static void unfixup_regex_pattern(char *s)
+{
+	size_t n = strnlen(s, RH_XSALLOC_MAX);
+
+	if (n < 2) return;
+	if (n && !(*s == '^' && *(s+n-1) == '$')) return;
+
+	*(s+n-1) = 0;
+	memmove(s, s+1, n-1);
+}
+
 /*
  * This is a wrapper around host regex
  * to support reentrancy. It also stores
@@ -88,6 +99,16 @@ rh_yesno regex_exec(const void *regex, const char *string)
 	return regexec(&rgx->regex, string,
 		rgx->pmatch ? RH_REGEX_MAX_GROUPS : 0,
 		rgx->pmatch, 0) == 0 ? YES : NO;
+}
+
+char *regex_get_pattern(const void *regex)
+{
+	const struct regex_storage *rgx = regex;
+	char *r;
+
+	r = rh_strdup(rgx->spattern);
+	unfixup_regex_pattern(r);
+	return r;
 }
 
 char *regex_get_match(const void *regex, const char *string, size_t idx)
@@ -146,6 +167,8 @@ void regex_xexits(const void *regex)
 void regex_free(void *regex)
 {
 	struct regex_storage *rgx = regex;
+
+	if (!regex) return;
 
 	regfree(&rgx->regex);
 	pfree(rgx->pmatch);

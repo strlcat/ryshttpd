@@ -343,6 +343,7 @@ void free_config(void *config);
 
 void *regex_compile(const char *pattern, rh_yesno nocase, rh_yesno pmatch);
 rh_yesno regex_exec(const void *regex, const char *string);
+char *regex_get_pattern(const void *regex);
 char *regex_get_match(const void *regex, const char *string, size_t idx);
 rh_yesno regex_is_error(const void *regex);
 char *regex_error(const void *regex);
@@ -531,8 +532,6 @@ struct client_state {
 	rh_yesno is_exec; /* if file, will it be executed? */
 	rh_yesno is_rsrc; /* it was a fake file: internal resource. */
 	rh_yesno is_indx; /* set if was redirected by index regexmatch */
-	rh_yesno was_rewritten; /* single rewrite, without recursion, was matched before */
-	rh_yesno noindex; /* htaccess forbids to index this directory */
 	int cgi_mode; /* CGI mode of operation: regular, NoHeaders */
 	void *workbuf; /* response IO: temporary to read into */
 	size_t wkbufsz; /* size of workbuf */
@@ -543,6 +542,11 @@ struct client_state {
 	int iostate; /* result of io_send_file work */
 	int ioerror; /* set if there was an OS error while io_send_file work */
 	struct http_header *sendheaders; /* additional headers which response routine must send */
+
+	/* .htaccess related items */
+	rh_yesno was_rewritten; /* single rewrite, without recursion, was matched before */
+	rh_yesno noindex; /* htaccess forbids to index this directory */
+	void *hideindex_rgx; /* htaccess "hideindex" regex matching data */
 
 	/* Response status */
 	char *status;

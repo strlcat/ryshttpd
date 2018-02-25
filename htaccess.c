@@ -298,7 +298,16 @@ _matchip:		t = strchr(d, ' ');
 
 _do_matchip:		dpath = rh_strdup(t);
 			unquote(dpath, rh_szalloc(dpath));
-			if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
+
+			if (!strncmp(dpath, "matchip ", CSTR_SZ("matchip "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("matchip ");
+				*(d-1) = 0;
+				goto _matchip;
+			}
+			else if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
 				pfree(ln);
 				ln = dpath;
 				s = dpath;
@@ -571,7 +580,23 @@ _addit:					rh_astrcat(&dpath, ss);
 				pfree(ss); /* was dpath */
 				regex_free(rgx);
 
-				if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
+				if (!strncmp(dpath, "rewrite ", CSTR_SZ("rewrite "))) {
+					pfree(ln);
+					ln = dpath;
+					s = dpath;
+					d = dpath+CSTR_SZ("rewrite ");
+					*(d-1) = 0;
+					goto _rewrite;
+				}
+				else if (!strncmp(dpath, "rematch ", CSTR_SZ("rematch "))) {
+					pfree(ln);
+					ln = dpath;
+					s = dpath;
+					d = dpath+CSTR_SZ("rematch ");
+					*(d-1) = 0;
+					goto _rewrite;
+				}
+				else if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
 					pfree(ln);
 					ln = dpath;
 					s = dpath;

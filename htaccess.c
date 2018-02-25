@@ -303,6 +303,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("return ");
+				*(d-1) = 0;
 				goto _return;
 			}
 			else if (!strncmp(dpath, "header ", CSTR_SZ("header "))) {
@@ -310,6 +311,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("header ");
+				*(d-1) = 0;
 				goto _header;
 			}
 			else if (!strncmp(dpath, "redirect ", CSTR_SZ("redirect "))) {
@@ -317,6 +319,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("redirect ");
+				*(d-1) = 0;
 				goto _redirect;
 			}
 			else if (!strncmp(dpath, "movedto ", CSTR_SZ("movedto "))) {
@@ -324,6 +327,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("movedto ");
+				*(d-1) = 0;
 				goto _movedto;
 			}
 			else if (!strncmp(dpath, "deny ", CSTR_SZ("deny "))) {
@@ -331,6 +335,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("deny ");
+				*(d-1) = 0;
 				goto _deny;
 			}
 			else if (!strncmp(dpath, "allow ", CSTR_SZ("allow "))) {
@@ -338,6 +343,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("allow ");
+				*(d-1) = 0;
 				goto _allow;
 			}
 			else if (!strncmp(dpath, "noindex ", CSTR_SZ("noindex "))) {
@@ -345,6 +351,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("noindex ");
+				*(d-1) = 0;
 				goto _noindex;
 			}
 			else if (!strncmp(dpath, "hideindex ", CSTR_SZ("hideindex "))) {
@@ -352,6 +359,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("hideindex ");
+				*(d-1) = 0;
 				goto _hideindex;
 			}
 			else if (!strncmp(dpath, "ratelimit ", CSTR_SZ("ratelimit "))) {
@@ -359,6 +367,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("ratelimit ");
+				*(d-1) = 0;
 				goto _ratelimit;
 			}
 			else if (!strncmp(dpath, "ratelimit_up ", CSTR_SZ("ratelimit_up "))) {
@@ -366,6 +375,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("ratelimit_up ");
+				*(d-1) = 0;
 				goto _ratelimit_up;
 			}
 			else if (!strncmp(dpath, "ratelimit_down ", CSTR_SZ("ratelimit_down "))) {
@@ -373,6 +383,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("ratelimit_down ");
+				*(d-1) = 0;
 				goto _ratelimit_down;
 			}
 			else if (!strncmp(dpath, "rewrite ", CSTR_SZ("rewrite "))) {
@@ -380,6 +391,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("rewrite ");
+				*(d-1) = 0;
 				goto _rewrite;
 			}
 			else if (!strncmp(dpath, "rematch ", CSTR_SZ("rematch "))) {
@@ -387,6 +399,7 @@ _do_matchip:		dpath = rh_strdup(t);
 				ln = dpath;
 				s = dpath;
 				d = dpath+CSTR_SZ("rematch ");
+				*(d-1) = 0;
 				goto _rewrite;
 			}
 			else {
@@ -563,6 +576,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("return ");
+					*(d-1) = 0;
 					goto _return;
 				}
 				else if (!strncmp(dpath, "header ", CSTR_SZ("header "))) {
@@ -570,6 +584,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("header ");
+					*(d-1) = 0;
 					goto _header;
 				}
 				else if (!strncmp(dpath, "redirect ", CSTR_SZ("redirect "))) {
@@ -577,6 +592,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("redirect ");
+					*(d-1) = 0;
 					goto _redirect;
 				}
 				else if (!strncmp(dpath, "movedto ", CSTR_SZ("movedto "))) {
@@ -584,6 +600,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("movedto ");
+					*(d-1) = 0;
 					goto _movedto;
 				}
 				else if (!strncmp(dpath, "deny ", CSTR_SZ("deny "))) {
@@ -591,6 +608,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("deny ");
+					*(d-1) = 0;
 					goto _deny;
 				}
 				else if (!strncmp(dpath, "allow ", CSTR_SZ("allow "))) {
@@ -598,6 +616,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("allow ");
+					*(d-1) = 0;
 					goto _allow;
 				}
 				else if (!strncmp(dpath, "noindex ", CSTR_SZ("noindex "))) {
@@ -605,6 +624,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("noindex ");
+					*(d-1) = 0;
 					goto _noindex;
 				}
 				else if (!strncmp(dpath, "hideindex ", CSTR_SZ("hideindex "))) {
@@ -612,6 +632,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("hideindex ");
+					*(d-1) = 0;
 					goto _hideindex;
 				}
 				else if (!strncmp(dpath, "ratelimit ", CSTR_SZ("ratelimit "))) {
@@ -619,6 +640,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("ratelimit ");
+					*(d-1) = 0;
 					goto _ratelimit;
 				}
 				else if (!strncmp(dpath, "ratelimit_up ", CSTR_SZ("ratelimit_up "))) {
@@ -626,6 +648,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("ratelimit_up ");
+					*(d-1) = 0;
 					goto _ratelimit_up;
 				}
 				else if (!strncmp(dpath, "ratelimit_down ", CSTR_SZ("ratelimit_down "))) {
@@ -633,6 +656,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("ratelimit_down ");
+					*(d-1) = 0;
 					goto _ratelimit_down;
 				}
 				else if (!strncmp(dpath, "matchip ", CSTR_SZ("matchip "))) {
@@ -640,6 +664,7 @@ _addit:					rh_astrcat(&dpath, ss);
 					ln = dpath;
 					s = dpath;
 					d = dpath+CSTR_SZ("matchip ");
+					*(d-1) = 0;
 					goto _matchip;
 				}
 

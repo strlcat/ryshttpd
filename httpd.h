@@ -546,6 +546,9 @@ struct client_state {
 	rh_yesno was_rewritten; /* single rewrite, without recursion, was matched before */
 	rh_yesno noindex; /* htaccess forbids to index this directory */
 	void *hideindex_rgx; /* htaccess "hideindex" regex matching data */
+	int on_fs_err; /* if nonzero, then return this http code
+		if a generic I/O error happened while trying
+		to list the directory or open a file */
 
 	/* Response status */
 	char *status;

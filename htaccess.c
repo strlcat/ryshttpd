@@ -175,7 +175,14 @@ _raargs:	if (args_fmtstr_parse(clstate->args, ln, lnsz, NULL) >= lnsz) {
 _trim:		*d = 0; d++;
 		if (*d == ' ') goto _trim;
 
-		if (!strcasecmp(s, "return")) {
+		if (!strcasecmp(s, "on_fs_error")) {
+			int x = rh_str_int(d, &t);
+			if (!str_empty(t)) continue;
+			clstate->on_fs_err = x;
+			continue;
+		}
+
+		else if (!strcasecmp(s, "return")) {
 _return:		r = rh_str_int(d, &t);
 			if (!str_empty(t)) continue;
 			goto _done;

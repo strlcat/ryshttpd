@@ -48,7 +48,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <dirent.h>
-#include <sys/mman.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/select.h>

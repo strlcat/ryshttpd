@@ -187,6 +187,8 @@ void response_error(struct client_state *clstate, int status)
 	 * From the first start it should fit the space.
 	 */
 	sz = (rsrc->szdata / 2) * 3;
+	s = rh_memdup(rsrc->data, rsrc->szdata);
+	s = rh_realloc(s, rsrc->szdata+1);
 _tryagain:
 	errdata = rh_realloc(errdata, sz);
 	APPEND_FSA(fsa, nr_fsa, "RH_ERROR_STR", 0, "%s", rsp->response);
@@ -194,7 +196,7 @@ _tryagain:
 	rh_memzero(&fst, sizeof(struct fmtstr_state));
 	fst.args = fsa;
 	fst.nargs = nr_fsa;
-	fst.fmt = rsrc->data;
+	fst.fmt = s;
 	fst.result = errdata;
 	fst.result_sz = rh_szalloc(errdata);
 	parse_fmtstr(&fst);
@@ -204,6 +206,7 @@ _tryagain:
 		if (sz > RH_XSALLOC_MAX) xexits("bad errdata parse state");
 		goto _tryagain;
 	}
+	pfree(s);
 
 	/* Cleanup of double slashes in paths (FIXME) */
 	rh_strlrep(errdata, rh_szalloc(errdata), "//", "/");

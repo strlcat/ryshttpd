@@ -712,8 +712,8 @@ _v4init:
 		clinfo->ralimitdown.total = ratelimit_down;
 
 		/* Listening on multiple servers */
-		if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
-			if (errno == EINTR || errno == EAGAIN) continue;
+_sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
+			if (errno == EINTR || errno == EAGAIN) goto _sagain;
 			xerror("selecting listening fds");
 		}
 

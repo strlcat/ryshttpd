@@ -108,12 +108,18 @@ char *parse_fmtstr(struct fmtstr_state *fst)
 
 	if (!is_fmtstr(fmt)) {
 		/* get slack and never do the useless hard job */
-		rh_strlcpy(out, fmt, outl);
+		n = rh_strlcpy_real(out, fmt, outl);
+		if (n >= outl) fst->trunc = 1;
 		fst->nr_parsed = 0;
 		return out;
 	}
 
-	rh_strlcpy(out, fmt, outl);
+	n = rh_strlcpy_real(out, fmt, outl);
+	if (n >= outl) {
+		fst->trunc = 1;
+		fst->nr_parsed = 0;
+		return out;
+	}
 
 	s = d = NULL;
 	for (x = 0; x < nargs

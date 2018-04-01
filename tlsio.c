@@ -56,9 +56,14 @@ rh_yesno TLS_parsemsg(struct TLSContext *tlsctx, int fd, void *tmp, size_t tsz)
 
 size_t TLS_read(struct TLSContext *tlsctx, int fd, void *data, size_t szdata)
 {
+	size_t x;
+
 	if (tls_established(tlsctx) <= 0) return NOSIZE;
 	if (!TLS_parsemsg(tlsctx, fd, data, szdata)) return NOSIZE;
-	return (size_t)tls_read(tlsctx, data, (unsigned int)szdata);
+	x = (size_t)tls_read(tlsctx, data, (unsigned int)szdata);
+	if (x < szdata) rh_memzero(data+x, szdata-x);
+
+	return x;
 }
 
 size_t TLS_write(struct TLSContext *tlsctx, int fd, const void *data, size_t szdata)

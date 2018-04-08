@@ -263,7 +263,7 @@ void rh_free(void *p);
 #define pfree(p) do { rh_free(p); p = NULL; } while (0)
 size_t rh_szalloc(const void *p);
 
-rh_yesno isnum(const char *s, int sign);
+rh_yesno is_number(const char *s, int sign);
 int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);
 rh_yesno is_writable(const char *path);
 

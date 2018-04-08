@@ -35,7 +35,7 @@ uid_t uidbyname(const char *name)
 {
 	struct passwd *p;
 
-	if (isnum(name, NO))
+	if (is_number(name, NO))
 		return (uid_t)atoi(name);
 	p = getpwnam(name);
 	if (p) return p->pw_uid;
@@ -56,7 +56,7 @@ gid_t gidbyname(const char *name)
 {
 	struct group *g;
 
-	if (isnum(name, NO))
+	if (is_number(name, NO))
 		return (gid_t)atoi(name);
 	g = getgrnam(name);
 	if (g) return g->gr_gid;
@@ -66,7 +66,7 @@ gid_t gidbyname(const char *name)
 
 int getugroups(const char *name, gid_t gr, gid_t *grps, int *ngrps)
 {
-	if (isnum(name, NO)) {
+	if (is_number(name, NO)) {
 		struct passwd *p;
 		p = getpwuid(atoi(name));
 		if (p) name = p->pw_name;

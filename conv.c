@@ -108,10 +108,10 @@ rh_fsize rh_str_human_fsize(const char *s, char **stoi)
 	rh_strlcpy(N, s, sizeof(N));
 	l = strnlen(N, sizeof(N));
 	pfx[0] = *(N+l-1);
-	if (!isnum(pfx, NO)) *(N+l-1) = 0;
+	if (!is_number(pfx, NO)) *(N+l-1) = 0;
 
 	*stoi = NULL;
-	if (isnum(pfx, NO) || *pfx == 'B' || *pfx == 'c') r = strtoull(N, stoi, 10);
+	if (is_number(pfx, NO) || *pfx == 'B' || *pfx == 'c') r = strtoull(N, stoi, 10);
 	else if (*pfx == 'k' || *pfx == 'K') r = strtoull(N, stoi, 10)*1024;
 	else if (*pfx == 'm' || *pfx == 'M') r = strtoull(N, stoi, 10)*1024*1024;
 	else if (*pfx == 'g' || *pfx == 'G') r = strtoull(N, stoi, 10)*0x40000000ULL;

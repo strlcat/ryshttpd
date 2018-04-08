@@ -28,7 +28,7 @@
 
 #include "httpd.h"
 
-rh_yesno isnum(const char *s, int sign)
+rh_yesno is_number(const char *s, int sign)
 {
 	char *p;
 	if (!s || str_empty(s)) return NO;

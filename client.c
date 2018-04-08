@@ -319,7 +319,7 @@ static void catch_status_code(struct client_state *clstate, const void *rdata, s
 		if (!strncmp(clstate->protoversion, s, x) && s[x] == ' ') {
 			s += x+1;
 			rh_strlcpy_real(t, s, sizeof(t));
-			if (isnum(t, NO) == YES) clstate->status = rh_strdup(t);
+			if (is_number(t, NO) == YES) clstate->status = rh_strdup(t);
 		}
 	}
 }

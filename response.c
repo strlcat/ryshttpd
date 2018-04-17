@@ -71,20 +71,35 @@ static void *add_status_line(void *rsp, struct client_state *clstate, const stru
 
 static void *add_std_headers(void *rsp, struct client_state *clstate)
 {
-	char *s, *d;
+	char *s, *d, *t;
 	size_t x;
 	void *r = rsp;
 
-	s = NULL;
-	x = rh_asprintf(&s, "Server: %s", rh_ident);
+	s = d = NULL;
+
+	t = find_header_value(clstate->sendheaders, "Server");
+	x = rh_asprintf(&s, "Server: %s", t ? t : rh_ident);
+	if (t) delete_header(&clstate->sendheaders, "Server");
 	r = add_to_response(r, clstate->is_crlf, s, x);
 
-	d = getsdate(clstate->request_time, HTTP_DATE_FMT, YES);
-	x = rh_asprintf(&s, "Date: %s", d);
+	t = find_header_value(clstate->sendheaders, "Date");
+	if (!t) d = getsdate(clstate->request_time, HTTP_DATE_FMT, YES);
+	x = rh_asprintf(&s, "Date: %s", t ? t : d);
+	if (t) delete_header(&clstate->sendheaders, "Date");
 	pfree(d);
 	r = add_to_response(r, clstate->is_crlf, s, x);
 
-	x = rh_asprintf(&s, "Connection: %s", clstate->is_keepalive ? "keep-alive" : "close");
+	t = find_header_value(clstate->sendheaders, "Connection");
+	x = rh_asprintf(&s, "Connection: %s",
+		t ? t : (clstate->is_keepalive ? "keep-alive" : "close"));
+	if (t) {
+		if (!strcasecmp(t, "close")) {
+			clstate->is_keepalive = NO;
+			delete_header(&clstate->sendheaders, "Keep-Alive");
+			delete_header(&clstate->sendheaders, "Transfer-Encoding");
+		}
+		delete_header(&clstate->sendheaders, "Connection");
+	}
 	r = add_to_response(r, clstate->is_crlf, s, x);
 
 	pfree(s);

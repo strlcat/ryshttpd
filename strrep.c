@@ -28,7 +28,7 @@
 
 /*
  * strrep - replace substrings inside strings.
- * (Should be) Safe version written for super(8).
+ * (Should be) Safe version written for access(8).
  * Supports counting and limiting number of replacements.
  *
  * -- Rys, 28Sep2017.

@@ -106,8 +106,8 @@ mini_httpd: it simply tried to read the _whole file_ into memory before sending 
 to a client. This resulted in an OOM Killer action.
 
 ryshttpd must be small such as busybox httpd or mini_httpd, really, but must be flexible enough.
-I gained great experience during writing my own super(8) program, and I wanted ryshttpd
-to be the same flexible and reusable thing. I took much code from super(8) to form it.
+I gained great experience during writing my own access(8) program, and I wanted ryshttpd
+to be the same flexible and reusable thing. I took much code from access(8) to form it.
 
 I also dreamed about writing my own httpd since even 2007. But I lacked experience for years,
 and only now I ready to write one.
@@ -200,7 +200,7 @@ Note that htupload.cgi component included does NOT check for a forbidden
 Comments are supported, but only at the beginning of the line.
 Inline comments starting after a config item are NOT supported.
 
-Please note that, as with super(8), .htaccess files are considered an admin maintained thing.
+Please note that, as with access(8), .htaccess files are considered an admin maintained thing.
 The same rules apply here too: if a syntax error causes ryshttpd to fail or even segfault,
 it's an admin duty to fix it and know a valid syntax. ryshttpd will NEVER hint you about a
 valid syntax or point to a syntax errors because that's an added unnecessary code.
@@ -361,7 +361,7 @@ large files too, but it does not do directory listings which I need too.
 
 Keep alive, future FastCGI support and TLS (https) were considered by nginx.
 
-The whole thing was built ontop of super(8) codebase.
+The whole thing was built ontop of access(8) codebase.
 
 NAME
 

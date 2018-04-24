@@ -138,6 +138,8 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	while "all" specifies that anyone may have access.
 "deny IP/subnet/all": deny access to a directory.
 	The syntax is same as for "allow".
+"done": stop further parsing htaccess file at this line. May be applied inside
+	"rewrite"/"rematch"/"matchip" rules, see their description below.
 "on_fs_error HTTPcode": return this error code if a filesystem error was encountered.
 	This setting is recursive, and if any of .htaccess files in chain touched it,
 	it will persist until the end of the single request, but any .htaccess file

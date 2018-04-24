@@ -175,7 +175,11 @@ _raargs:	if (args_fmtstr_parse(clstate->args, ln, lnsz, NULL) >= lnsz) {
 _trim:		*d = 0; d++;
 		if (*d == ' ') goto _trim;
 
-		if (!strcasecmp(s, "on_fs_error")) {
+		if (!strcasecmp(s, "done")) {
+			goto _xdone;
+		}
+
+		else if (!strcasecmp(s, "on_fs_error")) {
 			int x = rh_str_int(d, &t);
 			if (!str_empty(t)) continue;
 			clstate->on_fs_err = x;
@@ -313,6 +317,9 @@ _do_matchip:		dpath = rh_strdup(t);
 				d = dpath+CSTR_SZ("matchip ");
 				*(d-1) = 0;
 				goto _matchip;
+			}
+			else if (!strcmp(dpath, "done")) {
+				goto _xdone;
 			}
 			else if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
 				pfree(ln);
@@ -603,6 +610,9 @@ _addit:					rh_astrcat(&dpath, ss);
 					*(d-1) = 0;
 					goto _rewrite;
 				}
+				else if (!strcmp(dpath, "done")) {
+					goto _xdone;
+				}
 				else if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
 					pfree(ln);
 					ln = dpath;
@@ -749,7 +759,7 @@ _addit:					rh_astrcat(&dpath, ss);
 		}
 	}
 
-	if (denied == YES) r = 403;
+_xdone:	if (denied == YES) r = 403;
 	else r = 0;
 
 _done:	free_config(cfg);

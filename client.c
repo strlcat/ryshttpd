@@ -1452,8 +1452,18 @@ _no_send:		/*
 		if (x > 0 && clstate->path[x-1] != '/')
 			rh_astrcat(&clstate->path, "/");
 
+		/*
+		 * But still pass a version without forward slash to verify_htaccess.
+		 */
+		s = rh_strdup(clstate->realpath);
+		x = strnlen(s, RH_XSALLOC_MAX);
+		/* x > 1: do not touch single "/" string. */
+		if (x > 1 && s[x-1] == '/') s[x-1] = 0;
+		rh_strlrep(s, rh_szalloc(s), "//", "/");
+
 		/* Verify the user has access */
-		err = verify_htaccess(clstate, clstate->realpath, rh_root_dir);
+		err = verify_htaccess(clstate, s, rh_root_dir);
+		pfree(s);
 		if (err == HTA_REWRITE) goto _hta_rewrite;
 		if (err > 0) {
 			response_error(clstate, err);

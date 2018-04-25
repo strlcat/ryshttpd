@@ -80,6 +80,7 @@ static rh_yesno do_logrotate;
 static rh_yesno drop_setuid;
 static rh_yesno drop_setgid;
 rh_yesno rh_issuper;
+rh_yesno rh_insecure_htaccess;
 #ifdef WITH_TLS
 char *rh_tlsport_s;
 static char *rh_tls_certf;
@@ -380,6 +381,7 @@ int main(int argc, char **argv)
 					else if (!strcmp(s, "content_charset")) SETOPT(rh_content_charset, p);
 #endif
 					else if (!strcmp(s, "follow_symlinks")) FLIP_YESNO(rh_follow_symlinks);
+					else if (!strcmp(s, "insecure_htaccess")) FLIP_YESNO(rh_insecure_htaccess);
 					else if (!strcmp(s, "rdwr_bufsize")) {
 						rh_rdwr_bufsize = rh_str_size(p, &stoi);
 						if (!str_empty(stoi))

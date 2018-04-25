@@ -95,6 +95,7 @@ void usage(void)
 	rh_say("    -O content_charset: set Content-Type \"charset\" to this value for text files");
 #endif
 	rh_say("    -O follow_symlinks: follow symlinks, even if they lead outside of http root");
+	rh_say("    -O insecure_htaccess: do not check .htaccess files to be writable by process");
 	rh_say("    -O rdwr_bufsize=size: set read/write temporary client buffer size");
 	rh_say("    -O log_bufsize=size: set log 'pipe' and server log buffer size");
 	rh_say("    -O max_client_connections=int: set connection limit per one IP address");

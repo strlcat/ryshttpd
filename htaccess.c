@@ -102,7 +102,7 @@ static int htaccess_single(struct client_state *clstate, const char *htadir, con
 		return 0;
 	}
 
-	if (rh_issuper == NO && is_writable(s)) {
+	if (rh_insecure_htaccess == NO) if (rh_issuper == NO && is_writable(s)) {
 		pfree(s);
 		return 0;
 	}

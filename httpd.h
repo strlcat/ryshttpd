@@ -158,6 +158,7 @@ extern int rh_cgi_mode;
 extern rh_yesno rh_follow_symlinks;
 extern size_t rh_rdwr_bufsize;
 extern rh_yesno rh_issuper;
+extern rh_yesno rh_insecure_htaccess;
 
 extern void *rh_hostnames_rgx;
 extern void *rh_cgiexecs_rgx;

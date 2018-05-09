@@ -104,12 +104,14 @@ void usage(void)
 	rh_say("    -O keepalive_timeout=secs: keepalive connection timeout in seconds");
 	rh_say("    -O keepalive_requests=int: maximum number of keepalive requests\n"
 		"      after which connection is forcibly closed");
-	rh_say("    -O ratelimit number: limit download and upload network speed globally.\n"
+	rh_say("    -O ratelimit=size: limit download and upload network speed globally.\n"
 		"      number may be a raw value or a human readable value without fraction.\n"
 		"      Note that values higher than 10M may require increasing -O rdwr_bufsize,\n"
 		"      because of drifting sleeping accuracy of higher number of chunks.");
-	rh_say("    -O ratelimit_up number: limit upload network speed only.");
-	rh_say("    -O ratelimit_down number: limit upload network speed only.");
+	rh_say("    -O ratelimit_up=size: limit upload network speed only.");
+	rh_say("    -O ratelimit_down=size: limit upload network speed only.");
+	rh_say("    -O oom_timer=usecs: repeat allocation attempts after this number of useconds.");
+	rh_say("    -O oom_max_attempts=int: fail after this number of unsuccessful allocation attempts.");
 	rh_say("\n");
 	rh_say("  -V: show version number and exit");
 	rh_say("\n");

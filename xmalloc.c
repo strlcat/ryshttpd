@@ -63,8 +63,6 @@ static size_t uinthash(size_t x)
 }
 #undef UIHOP
 
-void rh_ub(const void *offender);
-
 static rh_yesno checkptr(const void *p)
 {
 	size_t *sp;
@@ -95,8 +93,12 @@ void *rh_malloc(size_t n)
 	char *s;
 
 	if (n == 0) n++;
-	r = malloc(PROPER_ALIGN+n+sizeof(size_t));
-	if (!r) xerror("rh_malloc");
+_try:	r = malloc(PROPER_ALIGN+n+sizeof(size_t));
+	if (!r) {
+		if (rh_oom(YES, OOM_MALLOC) == YES) goto _try;
+		else xerror("rh_malloc");
+	}
+	else rh_oom(NO, OOM_MALLOC);
 
 	rh_memzero(r, PROPER_ALIGN+n+sizeof(size_t));
 	*r = n;
@@ -121,7 +123,7 @@ void *rh_calloc(size_t x, size_t y)
 
 void *rh_realloc(void *p, size_t n)
 {
-	size_t *r;
+	size_t *r, *t;
 	size_t sz, x, y;
 	char *s;
 
@@ -136,8 +138,15 @@ void *rh_realloc(void *p, size_t n)
 	r = (size_t *)p-ALIGN_SIZES;
 	sz = *r;
 
-	r = realloc(r, PROPER_ALIGN+n+sizeof(size_t));
-	if (!r) xerror("rh_realloc");
+_try:	t = realloc(r, PROPER_ALIGN+n+sizeof(size_t));
+	if (!t) {
+		if (rh_oom(YES, OOM_REALLOC) == YES) goto _try;
+		else xerror("rh_realloc");
+	}
+	else {
+		r = t;
+		rh_oom(NO, OOM_REALLOC);
+	}
 	if (sz < n) {
 		s = (char *)r;
 		s += PROPER_ALIGN+sz;

@@ -159,6 +159,8 @@ extern rh_yesno rh_follow_symlinks;
 extern size_t rh_rdwr_bufsize;
 extern rh_yesno rh_issuper;
 extern rh_yesno rh_insecure_htaccess;
+extern useconds_t rh_oom_timer;
+extern unsigned long rh_oom_max_attempts;
 
 extern void *rh_hostnames_rgx;
 extern void *rh_cgiexecs_rgx;
@@ -255,6 +257,11 @@ char *rh_strndup(const char *s, size_t max);
 char *rh_strdup(const char *s);
 void *append_data(void *block, const void *data, size_t szdata);
 
+#define OOM_MALLOC 1
+#define OOM_REALLOC 2
+
+void rh_ub(const void *offender);
+rh_yesno rh_oom(rh_yesno fail, int where);
 void *rh_malloc(size_t n);
 #ifdef WITH_TLS
 void *rh_calloc(size_t x, size_t y);

@@ -35,6 +35,25 @@ void rh_ub(const void *offender)
 	xexits("UB: %p was corrupted!", offender);
 }
 
+rh_yesno rh_oom(rh_yesno fail, int where)
+{
+	static unsigned long attempted;
+
+	if (fail == NO) {
+		if (rh_oom_timer == 0) return YES;
+		if (attempted > 0) attempted = 0;
+		return YES;
+	}
+	else {
+		if (rh_oom_timer == 0) return NO;
+		if (attempted >= rh_oom_max_attempts) return NO;
+
+		usleep(rh_oom_timer);
+		attempted++;
+		return YES;
+	}
+}
+
 rh_exit_cb rh_atexit;
 
 void rh_exit(int status)

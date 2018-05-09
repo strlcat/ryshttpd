@@ -81,6 +81,8 @@ static rh_yesno drop_setuid;
 static rh_yesno drop_setgid;
 rh_yesno rh_issuper;
 rh_yesno rh_insecure_htaccess;
+useconds_t rh_oom_timer;
+unsigned long rh_oom_max_attempts;
 #ifdef WITH_TLS
 char *rh_tlsport_s;
 static char *rh_tls_certf;
@@ -440,6 +442,16 @@ int main(int argc, char **argv)
 						ratelimit_down = rh_str_human_fsize(p, &stoi);
 						if (!str_empty(stoi))
 							xexits("%s: invalid download rate limit value", p);
+					}
+					else if (!strcmp(s, "oom_timer")) {
+						rh_oom_timer = (useconds_t)rh_str_long(p, &stoi);
+						if (!str_empty(stoi))
+							xexits("%s: invalid OOM timer value", p);
+					}
+					else if (!strcmp(s, "oom_max_attempts")) {
+						rh_oom_max_attempts = (unsigned long)rh_str_long(p, &stoi);
+						if (!str_empty(stoi))
+							xexits("%s: invalid OOM max attempts value", p);
 					}
 					else xexits("%s: unknown option", s);
 				}

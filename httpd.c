@@ -83,6 +83,7 @@ rh_yesno rh_issuper;
 rh_yesno rh_insecure_htaccess;
 useconds_t rh_oom_timer;
 unsigned long rh_oom_max_attempts;
+int rh_on_fs_error;
 #ifdef WITH_TLS
 char *rh_tlsport_s;
 static char *rh_tls_certf;
@@ -452,6 +453,11 @@ int main(int argc, char **argv)
 						rh_oom_max_attempts = (unsigned long)rh_str_long(p, &stoi);
 						if (!str_empty(stoi))
 							xexits("%s: invalid OOM max attempts value", p);
+					}
+					else if (!strcmp(s, "on_fs_error")) {
+						rh_on_fs_error = rh_str_int(p, &stoi);
+						if (!str_empty(stoi))
+							xexits("%s: invalid default filesystem error code", p);
 					}
 					else xexits("%s: unknown option", s);
 				}

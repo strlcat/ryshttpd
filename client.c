@@ -287,7 +287,6 @@ static void reset_client_state(struct client_state *clstate)
 		regex_free(clstate->hideindex_rgx);
 		clstate->hideindex_rgx = NULL;
 	}
-	clstate->on_fs_err = 0;
 
 	pfree(clstate->status);
 
@@ -895,7 +894,7 @@ _not_found:
 			clstate->realpath = NULL;
 			goto _not_found;
 		}
-		else response_error(clstate, clstate->on_fs_err ? clstate->on_fs_err : 403);
+		else response_error(clstate, rh_on_fs_error ? rh_on_fs_error : 403);
 		goto _done;
 	}
 	/* direct file */

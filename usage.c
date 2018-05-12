@@ -112,6 +112,7 @@ void usage(void)
 	rh_say("    -O ratelimit_down=size: limit upload network speed only.");
 	rh_say("    -O oom_timer=usecs: repeat allocation attempts after this number of useconds.");
 	rh_say("    -O oom_max_attempts=int: fail after this number of unsuccessful allocation attempts.");
+	rh_say("    -O on_fs_error=int: return this HTTP error code on a generic filesystem error.");
 	rh_say("\n");
 	rh_say("  -V: show version number and exit");
 	rh_say("\n");

@@ -64,23 +64,23 @@ _bad:		pfree(s);
 
 void add_header(struct http_header **hdrlist, const char *name, const char *value)
 {
-	size_t sz;
+	size_t sz, x;
 	struct http_header *hdr;
 
 	hdr = find_header(*hdrlist, name);
 	if (hdr) {
-		pfree(hdr->name);
+		if (!hdr->value) return;
 		pfree(hdr->value);
-		hdr->name = rh_strdup(name);
-		hdr->value = rh_strdup(value);
+		if (value) hdr->value = rh_strdup(value);
 		return;
 	}
 
 	hdr = *hdrlist;
 	sz = DYN_ARRAY_SZ(hdr);
+	for (x = 0; x < sz; x++) if (!hdr[sz].name && !hdr[sz].value) goto _add;
 	hdr = rh_realloc(hdr, (sz+1) * sizeof(struct http_header));
-	hdr[sz].name = rh_strdup(name);
-	hdr[sz].value = rh_strdup(value);
+_add:	hdr[sz].name = rh_strdup(name);
+	if (value) hdr[sz].value = rh_strdup(value);
 	*hdrlist = hdr;
 }
 

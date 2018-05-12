@@ -145,6 +145,7 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	then a generic 500 Server Error code will be returned instead.
 "header Name Value": append custom header or replace existing one.
 	While "Name" cannot contain spaces, "Value" can.
+	if a "Value" is not specified, this instructs httpd to remove such header permanently.
 "redirect URL": immediately redirect user to a URL, with 302 status code.
 	URL may be absolute (begin with protocol and such), or relative.
 	redirect returns a 302 Found code and proper Location header.

@@ -187,9 +187,9 @@ _return:		r = rh_str_int(d, &t);
 
 		else if (!strcasecmp(s, "header")) {
 _header:		t = strchr(d, ' ');
-			if (!t) continue;
+			if (!t) goto _sethdr;
 			*t = 0; t++;
-			add_header(&clstate->sendheaders, d, t);
+_sethdr:		add_header(&clstate->sendheaders, d, t);
 
 			continue;
 		}

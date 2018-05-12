@@ -74,6 +74,9 @@ static size_t boundarylen;
 static char *reqpacket;
 static void *filehead;
 
+useconds_t rh_oom_timer = 100000;
+unsigned long rh_oom_max_attempts = 100;
+
 rh_yesno str_empty(const char *str)
 {
 	if (!*str) return YES;

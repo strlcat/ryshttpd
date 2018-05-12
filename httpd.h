@@ -162,6 +162,7 @@ extern rh_yesno rh_insecure_htaccess;
 extern useconds_t rh_oom_timer;
 extern unsigned long rh_oom_max_attempts;
 extern int rh_on_fs_error;
+extern rh_yesno rh_no_cache_headers;
 
 extern void *rh_hostnames_rgx;
 extern void *rh_cgiexecs_rgx;

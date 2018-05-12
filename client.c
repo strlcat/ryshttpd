@@ -188,6 +188,8 @@ static void tell_never_cache(struct client_state *clstate)
 	time_t t = (time_t)679779600L;
 	char *s;
 
+	if (rh_no_cache_headers == YES) return;
+
 	add_header(&clstate->sendheaders, "Cache-Control", "no-cache, no-store, must-revalidate");
 	add_header(&clstate->sendheaders, "Pragma", "no-cache");
 	s = getsdate(t, HTTP_DATE_FMT, YES);
@@ -198,6 +200,8 @@ static void tell_never_cache(struct client_state *clstate)
 static void tell_aggressive_cache(struct client_state *clstate)
 {
 	char *s;
+
+	if (rh_no_cache_headers == YES) return;
 
 	add_header(&clstate->sendheaders, "Cache-Control", "public, max-age=31536000");
 	s = getsdate(clstate->request_time + 31536000L, HTTP_DATE_FMT, YES);

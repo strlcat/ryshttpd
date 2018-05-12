@@ -84,6 +84,7 @@ rh_yesno rh_insecure_htaccess;
 useconds_t rh_oom_timer;
 unsigned long rh_oom_max_attempts;
 int rh_on_fs_error;
+rh_yesno rh_no_cache_headers;
 #ifdef WITH_TLS
 char *rh_tlsport_s;
 static char *rh_tls_certf;
@@ -385,6 +386,7 @@ int main(int argc, char **argv)
 #endif
 					else if (!strcmp(s, "follow_symlinks")) FLIP_YESNO(rh_follow_symlinks);
 					else if (!strcmp(s, "insecure_htaccess")) FLIP_YESNO(rh_insecure_htaccess);
+					else if (!strcmp(s, "no_cache_headers")) FLIP_YESNO(rh_no_cache_headers);
 					else if (!strcmp(s, "rdwr_bufsize")) {
 						rh_rdwr_bufsize = rh_str_size(p, &stoi);
 						if (!str_empty(stoi))

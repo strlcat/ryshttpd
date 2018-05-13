@@ -31,6 +31,7 @@
 struct config {
 	void *cfgdata; /* config file as whole */
 	char *d, *t; /* for strtok_r */
+	rh_yesno conv; /* \r\n was converted into \n */
 };
 
 rh_yesno is_comment(const char *s)
@@ -74,6 +75,12 @@ char *get_config_line(void *config)
 
 	if (!config) return NULL;
 	cfg = config;
+
+	if (cfg->conv == NO) {
+		size_t sz = rh_szalloc(cfg->cfgdata);
+		rh_strlrep(cfg->cfgdata, sz, "\r\n", "\n");
+		cfg->conv = YES;
+	}
 
 _again:
 	line = strtok_r(cfg->t ? NULL : cfg->d, "\n", &cfg->t);

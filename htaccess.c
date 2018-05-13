@@ -451,7 +451,7 @@ _rewrite:		/*
 
 			/*
 			 * t == pattern+rewriter mix
-			 * this code was taken from super, parse_cmdline@cmdline.c.
+			 * this code was taken from access, parse_cmdline@cmdline.c.
 			 */
 			l = strlen(t);
 			pat = rwr = NULL; ss = dd = t; f = F = NO;

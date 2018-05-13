@@ -28,7 +28,7 @@
 
 #include "httpd.h"
 
-/* public domain strlcpy implementation. Used by super, tfcrypt & genpwd. */
+/* public domain strlcpy implementation. Used by access, tfcrypt & genpwd. */
 size_t rh_strlcpy_real(char *dst, const char *src, size_t size)
 {
 	size_t len, srclen;

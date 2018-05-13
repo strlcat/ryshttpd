@@ -81,6 +81,7 @@ Standards:
 To be considered (long term):
 - authenticated (somehow; over TLS?) file uploads using HTTP PUT request,
 - FastCGI/SCGI support,
+- Move to poll() instead of forking,
 - HTTP/2.
 
 Not TODO (harmful or junk stuff):
@@ -342,6 +343,27 @@ It was confirmed that ryshttpd runs on Linux and it probably would work on other
 Unices too, such as flavors of BSD. It was also successfully built and running under
 Cygwin (but not Mingw). The code however aims to be as portable as it possible.
 
+WORK MODEL
+
+Currently, ryshttpd works as a simple "forking" server: it accepts a connection and creates
+a separate process for the single client. This has benefits and drawbacks, notably:
+Benefits:
+- forking is slightly more secure, as the client task is separated from server (master) task,
+- since forking creates processes, the child can change credentials,
+- forking is easy to implement (at the beginning),
+- forking maybe more portable, especially to very old platforms,
+- administrator can limit total amount of clients simply with resource limits.
+Drawbacks:
+- forking is slow if you need a really high performance service (like nginx),
+- forking does not randomise child address space again, and by design never will.
+
+ryshttpd currently targets itself as an easy replacement for such simple servers as mini_httpd,
+offering saner and cleaner code, more features and not taking much space in return.
+
+As the author will learn more efficient request processing techniques, he will implement them
+in ryshttpd sooner or later, and this server will not be the same through the time.
+So expect changes.
+
 SEE ALSO
 
 The basic features were considered by mini_httpd, such as directory listings
@@ -395,4 +417,4 @@ Please contact him by email: Andrey Rys <rys@lynxlynx.ru>.
 Please note that ryshttpd was written for authors own needs. It can be buggy,
 glitchy or not working for you as you'd expected. There is still a field for improvements.
 
--- Rys, 10Feb2018.
+-- Rys, 13May2018.

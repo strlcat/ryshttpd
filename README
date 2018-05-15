@@ -351,10 +351,13 @@ Benefits:
 - forking is slightly more secure, as the client task is separated from server (master) task,
 - since forking creates processes, the child can change credentials,
 - forking is easy to implement (at the beginning),
+- forking ensures that all available hardware is used ("native" threading),
+  so, for example, encryption is run on each core per each child process separately,
 - forking maybe more portable, especially to very old platforms,
 - administrator can limit total amount of clients simply with resource limits.
 Drawbacks:
 - forking is slow if you need a really high performance service (like nginx),
+- forking wastes more resources per each child process,
 - forking does not randomise child address space again, and by design never will.
 
 ryshttpd currently targets itself as an easy replacement for such simple servers as mini_httpd,
@@ -417,4 +420,4 @@ Please contact him by email: Andrey Rys <rys@lynxlynx.ru>.
 Please note that ryshttpd was written for authors own needs. It can be buggy,
 glitchy or not working for you as you'd expected. There is still a field for improvements.
 
--- Rys, 13May2018.
+-- Rys, 15May2018.

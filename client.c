@@ -1436,6 +1436,7 @@ _no_send:		/*
 		struct dirent *de;
 		struct stat stst;
 		rh_yesno do_text = NO;
+		rh_yesno no_dl_hints = NO;
 		rh_yesno listed = NO;
 		char *dpath = NULL;
 		char *dname = NULL;
@@ -1515,6 +1516,22 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 		/* Text only listing */
 		s = client_arg("txt");
 		if (s && !strcmp(s, "1")) do_text = YES;
+
+		/* No additional icon links, plain listing */
+		if (do_text == NO) {
+			s = client_arg("nodlh");
+			if (s && !strcmp(s, "1")) no_dl_hints = YES;
+			if (no_dl_hints == NO) {
+				s = client_header("x-ryshttpd-nodlh");
+				if (s && !strcmp(s, "1")) no_dl_hints = YES;
+			}
+			if (no_dl_hints == NO) {
+				s = client_header("User-Agent");
+				/* Make Wget life easier */
+				if (s && (strstr(s, "Wget") || strstr(s, "wget")))
+					no_dl_hints = YES;
+			}
+		}
 
 		/* File names may be encoded in UTF-8, so force it */
 		add_header(&clstate->sendheaders, "Content-Type",
@@ -1628,18 +1645,31 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 					dname = rh_strdup(de->d_name);
 					filter_special_htmlchars(&dname);
 
-					sz = rh_asprintf(&entline,
-						"<tr>"
-						"<td id=\"name\"><b><a href=\"%s%s%s\">%s</a></b></td>"
-						"<td>%llu\t(%s)</td><td>%s</td><td>%s</td><td>%s</td>"
-						"<td><a href=\"%s%s%s?dl=1\" title=\"Download %s\"><img src=\"%s/_rsrc/download.png\" alt=\"Download %s\"></a></td>"
-						"<td><a href=\"%s%s%s?vi=1\" title=\"View %s\"><img src=\"%s/_rsrc/view.png\" alt=\"View %s\"></a></td>"
-						"</tr>\n",
-						ppath(clstate->prepend_path), dpath, dname, dname,
-						(rh_fsize)stst.st_size, fsize, uname, gname, mtime,
-						ppath(clstate->prepend_path), dpath, dname, dname, ppath(clstate->prepend_path), dname,
-						ppath(clstate->prepend_path), dpath, dname, dname, ppath(clstate->prepend_path), dname
-					);
+					if (no_dl_hints == YES) {
+						sz = rh_asprintf(&entline,
+							"<tr>"
+							"<td id=\"name\"><b><a href=\"%s%s%s\">%s</a></b></td>"
+							"<td>%llu\t(%s)</td><td>%s</td><td>%s</td><td>%s</td>"
+							"</tr>\n",
+							ppath(clstate->prepend_path), dpath, dname, dname,
+							(rh_fsize)stst.st_size, fsize, uname, gname, mtime
+						);
+
+					}
+					else {
+						sz = rh_asprintf(&entline,
+							"<tr>"
+							"<td id=\"name\"><b><a href=\"%s%s%s\">%s</a></b></td>"
+							"<td>%llu\t(%s)</td><td>%s</td><td>%s</td><td>%s</td>"
+							"<td><a href=\"%s%s%s?dl=1\" title=\"Download %s\"><img src=\"%s/_rsrc/download.png\" alt=\"Download %s\"></a></td>"
+							"<td><a href=\"%s%s%s?vi=1\" title=\"View %s\"><img src=\"%s/_rsrc/view.png\" alt=\"View %s\"></a></td>"
+							"</tr>\n",
+							ppath(clstate->prepend_path), dpath, dname, dname,
+							(rh_fsize)stst.st_size, fsize, uname, gname, mtime,
+							ppath(clstate->prepend_path), dpath, dname, dname, ppath(clstate->prepend_path), dname,
+							ppath(clstate->prepend_path), dpath, dname, dname, ppath(clstate->prepend_path), dname
+						);
+					}
 
 					pfree(dname);
 				}

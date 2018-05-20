@@ -164,6 +164,7 @@ extern unsigned long rh_oom_max_attempts;
 extern int rh_on_fs_error;
 extern rh_yesno rh_no_cache_headers;
 
+extern void *rh_indexes_rgx;
 extern void *rh_hostnames_rgx;
 extern void *rh_cgiexecs_rgx;
 extern void *rh_nhcgiexecs_rgx;
@@ -285,8 +286,7 @@ rh_yesno is_symlink(const char *path);
 int file_or_dir(const char *path);
 rh_yesno is_exec(const char *path);
 
-void init_indexes(const char *idxstr);
-char *find_index_file(const char *dir);
+char *find_index_file(const char *path);
 
 struct netaddr {
 	int type;

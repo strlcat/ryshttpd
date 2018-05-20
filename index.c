@@ -28,41 +28,29 @@
 
 #include "httpd.h"
 
-static char **indexes;
-
-void init_indexes(const char *idxstr)
+char *find_index_file(const char *path)
 {
-	char *T = rh_strdup(idxstr);
-	char *s, *d, *t;
-	size_t sz;
-
-	if (indexes) return;
-
-	s = d = T; t = NULL;
-	while ((s = strtok_r(d, ":", &t))) {
-		if (d) d = NULL;
-
-		sz = DYN_ARRAY_SZ(indexes);
-		indexes = rh_realloc(indexes, (sz+1) * sizeof(char *));
-		indexes[sz] = rh_strdup(s);
-	}
-
-	pfree(T);
-}
-
-char *find_index_file(const char *dir)
-{
-	size_t sz, x;
 	char *r;
+	DIR *dp;
+	struct dirent *de;
 
-	if (file_or_dir(dir) != PATH_IS_DIR) return NULL;
+	if (file_or_dir(path) != PATH_IS_DIR) return NULL;
 
-	sz = DYN_ARRAY_SZ(indexes);
-	for (x = 0, r = NULL; x < sz; x++) {
-		rh_asprintf(&r, "%s/%s", dir, indexes[x]);
-		if (file_or_dir(r) == PATH_IS_FILE) return r;
+	dp = opendir(path);
+	if (!dp) return NULL;
+
+	r = NULL;
+	while ((de = readdir(dp))) {
+		if (!strcmp(de->d_name, ".")
+		|| !strcmp(de->d_name, "..")
+		|| strstr(de->d_name, rh_htaccess_name)) continue;
+
+		if (regex_exec(rh_indexes_rgx, de->d_name)) {
+			rh_asprintf(&r, "%s/%s", path, de->d_name);
+			if (file_or_dir(r) == PATH_IS_FILE) break;
+		}
 	}
 
-	pfree(r);
-	return NULL;
+	closedir(dp);
+	return r;
 }

@@ -27,15 +27,15 @@
 	"%{req_recv}/%{req_sent} %{req_range_start}-%{req_range_end}/%{req_filesize} "	\
 	"\"%{hdr_user_agent}\" \"%{hdr_referer}\""
 /* index file names which are considered to be shown instead of directory listing */
-#define RH_DEFAULT_INDEXES "index.html:index.cgi"
+#define RH_DEFAULT_INDEXES "index\\.(htm(|l)|txt|(|nh|eh)cgi|sh|pl)"
 /* htaccess default file name */
 #define RH_DEFAULT_HTACCESS_NAME ".htaccess"
 /* "plain CGI" file names (regex) to be executed. */
-#define RH_DEFAULT_CGI_EXECS "/(cgi/[^/]*\\.cgi|.*/index\\.cgi)"
+#define RH_DEFAULT_CGI_EXECS "/(cgi/[^/]*\\.cgi|(|.*/)index\\.cgi)"
 /* "NoHeaders CGI" file names (regex) to be executed as such. */
-#define RH_DEFAULT_NHCGI_EXECS "/nhcgi/[^/]*\\.cgi"
+#define RH_DEFAULT_NHCGI_EXECS "/(nhcgi/[^/]*\\.cgi|(|.*/)index\\.nhcgi)"
 /* "CGI ends head response" file names (regex) to be executed as such. */
-#define RH_DEFAULT_CGIEH_EXECS "/cgieh/[^/]*\\.cgi"
+#define RH_DEFAULT_CGIEH_EXECS "/(cgieh/[^/]*\\.cgi|(|.*/)index\\.ehcgi)"
 /* default CGI path */
 #define RH_DEFAULT_CGI_PATH "/bin:/sbin:/usr/bin:/usr/sbin"
 /* limit connections per single /32 IPv4 or /64 IPv6 subnet */

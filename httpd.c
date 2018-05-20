@@ -92,6 +92,7 @@ static char *rh_tls_keyf;
 static rh_yesno disable_tls;
 #endif
 
+void *rh_indexes_rgx;
 void *rh_hostnames_rgx;
 void *rh_cgiexecs_rgx;
 void *rh_nhcgiexecs_rgx;
@@ -488,12 +489,15 @@ int main(int argc, char **argv)
 	if (!rh_root_dir) xexits("root directory is required!");
 	rh_strlrep(rh_root_dir, rh_szalloc(rh_root_dir), "//", "/");
 
-	init_indexes(rh_indexes_s);
 #ifdef WITH_LIBMAGIC
 	if (init_magic_db() == NO) xerror("init libmagic");
 #else
 	init_mime_regex();
 #endif
+
+	rh_indexes_rgx = regex_compile(rh_indexes_s, NO, NO);
+	if (regex_is_error(rh_indexes_rgx))
+		regex_xexits(rh_indexes_rgx);
 
 	if (strcmp(rh_root_dir, "/") != 0) rh_prepend_str(&rh_cgi_execs, rh_root_dir);
 	rh_cgiexecs_rgx = regex_compile(rh_cgi_execs, NO, NO);

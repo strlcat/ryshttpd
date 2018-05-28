@@ -54,7 +54,7 @@ void usage(void)
 	rh_say("  -O OPTION: specify advanced option (or comma separated list of options):");
 	rh_say("    -O hostnames=rgx: set regex hostname(s). If client provides something\n"
 		"      other than matched, or nothing, then 404 error is returned to him.");
-	rh_say("    -O indexes=indx:indx2:... : index files to lookup in directories");
+	rh_say("    -O indexes=rgx: regex of index files to lookup in directories");
 	rh_say("    -O bindto4=ip4addr: bind to this ipv4 address");
 	rh_say("    -O bindto6=ip6addr: bind to this ipv6 address");
 	rh_say("    -O ident=str: set Server: ident string");

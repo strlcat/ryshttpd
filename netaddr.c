@@ -55,8 +55,7 @@ rh_yesno rh_parse_addr(const char *addr, struct netaddr *na)
 	if (s && *(s+1)) {
 		*s = 0; s++;
 		na->pfx = atoi(s);
-		if (na->pfx < 0) return NO;
-		else if (type == AF_INET && na->pfx > 32) return NO;
+		if (type == AF_INET && na->pfx > 32) return NO;
 		else if (type == AF_INET6 && na->pfx > 128) return NO;
 	}
 	else {

@@ -100,6 +100,7 @@ void usage(void)
 	rh_say("    -O rdwr_bufsize=size: set read/write temporary client buffer size");
 	rh_say("    -O log_bufsize=size: set log 'pipe' and server log buffer size");
 	rh_say("    -O max_client_connections=int: set connection limit per one IP address");
+	rh_say("    -O max_all_client_connections=int: set total connection limit that this httpd can serve");
 	rh_say("    -O client_ipv6_subnet=int: limit connections per IPv6 subnet prefix");
 	rh_say("    -O request_timeout=secs: first request timeout in seconds");
 	rh_say("    -O keepalive_timeout=secs: keepalive connection timeout in seconds");

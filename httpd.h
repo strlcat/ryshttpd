@@ -443,6 +443,7 @@ void add_client(pid_t pid, int logfd, const char *ipaddr);
 int get_client_logfd(pid_t pid);
 void delete_client(pid_t pid);
 size_t count_clients(const char *ipaddr);
+size_t count_all_clients(void);
 
 #define RESTYPE_PATH 1
 #define RESTYPE_NAME 2

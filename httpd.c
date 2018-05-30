@@ -71,7 +71,8 @@ int rh_cgi_mode = CGI_MODE_REGULAR;
 size_t rh_rdwr_bufsize = RH_CLIENT_READ_SZ;
 static size_t log_bufsize = ADDHALF_TO(RH_CLIENT_READ_SZ);
 static rh_yesno switch_user_on_fork;
-static unsigned int client_connections_limit = RH_DEFAULT_CONNECTIONS_LIMIT;
+static size_t client_connections_limit = RH_DEFAULT_CONNECTIONS_LIMIT;
+static size_t client_all_connections_limit = RH_DEFAULT_ALL_CONNECTIONS_LIMIT;
 static rh_fsize ratelimit_up = NOFSIZE;
 static rh_fsize ratelimit_down = NOFSIZE;
 static rh_yesno no_daemonise;
@@ -405,9 +406,14 @@ int main(int argc, char **argv)
 							xexits("%s: invalid log buffer size", p);
 					}
 					else if (!strcmp(s, "max_client_connections")) {
-						client_connections_limit = rh_str_int(p, &stoi);
+						client_connections_limit = rh_str_size(p, &stoi);
 						if (!str_empty(stoi))
 							xexits("%s: invalid max connections number", p);
+					}
+					else if (!strcmp(s, "max_all_client_connections")) {
+						client_all_connections_limit = rh_str_size(p, &stoi);
+						if (!str_empty(stoi))
+							xexits("%s: invalid max all connections number", p);
 					}
 					else if (!strcmp(s, "client_ipv6_subnet")) {
 						rh_client_ipv6_subnet = rh_str_int(p, &stoi);
@@ -847,7 +853,12 @@ _sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
 			clinfo->sockaddrlen, &clinfo->port);
 
 		/* too many of you - go away. */
-		if (count_clients(clinfo->ipaddr) >= client_connections_limit)
+		if (client_all_connections_limit > 0
+		&& client_all_connections_limit >= client_connections_limit
+		&& count_all_clients() >= client_all_connections_limit)
+			goto _drop_client;
+		if (client_connections_limit > 0
+		&& count_clients(clinfo->ipaddr) >= client_connections_limit)
 			goto _drop_client;
 
 		if (svlogfd != -1) {

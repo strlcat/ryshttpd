@@ -40,6 +40,8 @@
 #define RH_DEFAULT_CGI_PATH "/bin:/sbin:/usr/bin:/usr/sbin"
 /* limit connections per single /32 IPv4 or /64 IPv6 subnet */
 #define RH_DEFAULT_CONNECTIONS_LIMIT 5
+/* limit total number of client connections for any subnet types */
+#define RH_DEFAULT_ALL_CONNECTIONS_LIMIT 1000
 /* first request timeout */
 #define RH_DEFAULT_REQUEST_TIMEOUT 15
 /* keep alive timeout */

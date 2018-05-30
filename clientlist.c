@@ -162,3 +162,18 @@ _next:		c = c->next;
 
 	return cnt;
 }
+
+size_t count_all_clients(void)
+{
+	struct clinfo *c;
+	size_t cnt;
+
+	c = cli_head;
+	cnt = 0;
+	while (c) {
+		if (c->clpid != CLIENT_DELETED) cnt++;
+		c = c->next;
+	}
+
+	return cnt;
+}

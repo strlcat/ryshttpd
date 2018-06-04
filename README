@@ -163,6 +163,12 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	set access mode so that http server cannot get file list for it.
 	This is just another way to disable directory indexing.
 	Note that this directive is NOT recursive: subdirectories will be indexed.
+"regex_no_case yes": turn off regex sensitivity, so that you'll able to match both
+	"Apple" and "apple" with the same "/(apple)(|/.*)" regex pattern.
+	Note that if you will give the same command with opposite direction, then
+	case sensitivity matching will return back to normal.
+	-O regex_no_case affects this, but until this command is given.
+	This command works recursively for all the htaccess lookup tree.
 "hideindex regex/none": hide these items from directory listings. regex specifies all the
 	patterns which files or directories must match to be hidden.
 	The patterns are recursive for child directories. They also implicitly inherited

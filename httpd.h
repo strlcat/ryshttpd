@@ -159,6 +159,8 @@ extern rh_yesno rh_follow_symlinks;
 extern size_t rh_rdwr_bufsize;
 extern rh_yesno rh_issuper;
 extern rh_yesno rh_insecure_htaccess;
+extern rh_yesno rh_regex_no_case;
+extern rh_yesno rh_htaccess_regex_no_case;
 extern useconds_t rh_oom_timer;
 extern unsigned long rh_oom_max_attempts;
 extern int rh_on_fs_error;

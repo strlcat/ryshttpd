@@ -82,6 +82,8 @@ static rh_yesno drop_setuid;
 static rh_yesno drop_setgid;
 rh_yesno rh_issuper;
 rh_yesno rh_insecure_htaccess;
+rh_yesno rh_regex_no_case;
+rh_yesno rh_htaccess_regex_no_case;
 useconds_t rh_oom_timer;
 unsigned long rh_oom_max_attempts;
 int rh_on_fs_error;
@@ -389,6 +391,10 @@ int main(int argc, char **argv)
 					else if (!strcmp(s, "follow_symlinks")) FLIP_YESNO(rh_follow_symlinks);
 					else if (!strcmp(s, "insecure_htaccess")) FLIP_YESNO(rh_insecure_htaccess);
 					else if (!strcmp(s, "no_cache_headers")) FLIP_YESNO(rh_no_cache_headers);
+					else if (!strcmp(s, "regex_no_case")) {
+						FLIP_YESNO(rh_regex_no_case);
+						rh_htaccess_regex_no_case = rh_regex_no_case;
+					}
 					else if (!strcmp(s, "rdwr_bufsize")) {
 						rh_rdwr_bufsize = rh_str_size(p, &stoi);
 						if (!str_empty(stoi))
@@ -482,7 +488,7 @@ int main(int argc, char **argv)
 	if (rh_timefmt) parse_escapes(rh_timefmt, rh_szalloc(rh_timefmt));
 
 	if (rh_hostnames) {
-		rh_hostnames_rgx = regex_compile(rh_hostnames, NO, NO);
+		rh_hostnames_rgx = regex_compile(rh_hostnames, rh_regex_no_case, NO);
 		if (regex_is_error(rh_hostnames_rgx))
 			regex_xexits(rh_hostnames_rgx);
 	}
@@ -501,22 +507,22 @@ int main(int argc, char **argv)
 	init_mime_regex();
 #endif
 
-	rh_indexes_rgx = regex_compile(rh_indexes_s, NO, NO);
+	rh_indexes_rgx = regex_compile(rh_indexes_s, rh_regex_no_case, NO);
 	if (regex_is_error(rh_indexes_rgx))
 		regex_xexits(rh_indexes_rgx);
 
 	if (strcmp(rh_root_dir, "/") != 0) rh_prepend_str(&rh_cgi_execs, rh_root_dir);
-	rh_cgiexecs_rgx = regex_compile(rh_cgi_execs, NO, NO);
+	rh_cgiexecs_rgx = regex_compile(rh_cgi_execs, rh_regex_no_case, NO);
 	if (regex_is_error(rh_cgiexecs_rgx))
 		regex_xexits(rh_cgiexecs_rgx);
 
 	if (strcmp(rh_root_dir, "/") != 0) rh_prepend_str(&rh_nhcgi_execs, rh_root_dir);
-	rh_nhcgiexecs_rgx = regex_compile(rh_nhcgi_execs, NO, NO);
+	rh_nhcgiexecs_rgx = regex_compile(rh_nhcgi_execs, rh_regex_no_case, NO);
 	if (regex_is_error(rh_nhcgiexecs_rgx))
 		regex_xexits(rh_nhcgiexecs_rgx);
 
 	if (strcmp(rh_root_dir, "/") != 0) rh_prepend_str(&rh_cgieh_execs, rh_root_dir);
-	rh_cgiehexecs_rgx = regex_compile(rh_cgieh_execs, NO, NO);
+	rh_cgiehexecs_rgx = regex_compile(rh_cgieh_execs, rh_regex_no_case, NO);
 	if (regex_is_error(rh_cgiehexecs_rgx))
 		regex_xexits(rh_cgiehexecs_rgx);
 

@@ -179,6 +179,12 @@ _trim:		*d = 0; d++;
 			goto _xdone;
 		}
 
+		else if (!strcasecmp(s, "regex_no_case")) {
+			if (!strcasecmp(d, "yes")) rh_htaccess_regex_no_case = YES;
+			else rh_htaccess_regex_no_case = NO;
+			continue;
+		}
+
 		else if (!strcasecmp(s, "return")) {
 _return:		r = rh_str_int(d, &t);
 			if (!str_empty(t)) continue;
@@ -252,7 +258,7 @@ _hideindex:		if (clstate->hideindex_rgx) {
 			}
 			if (t) rh_astrcat(&t, "|");
 			rh_astrcat(&t, d);
-			clstate->hideindex_rgx = regex_compile(t, NO, NO);
+			clstate->hideindex_rgx = regex_compile(t, rh_htaccess_regex_no_case, NO);
 			pfree(t);
 			if (regex_is_error(clstate->hideindex_rgx)) {
 				rh_esay("%s/%s hideindex: regex error %s",
@@ -573,7 +579,7 @@ _addit:					rh_astrcat(&dpath, ss);
 
 			ss = dpath;
 
-			rgx = regex_compile(pat, NO, is_fmtstr(rwr) ? YES : NO);
+			rgx = regex_compile(pat, rh_htaccess_regex_no_case, is_fmtstr(rwr) ? YES : NO);
 			if (regex_is_error(rgx)) {
 				rh_esay("%s/%s rewrite: regex error %s",
 					htadir, rh_htaccess_name, regex_error(rgx));

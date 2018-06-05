@@ -1359,7 +1359,7 @@ _out:			destroy_argv(&tenvp);
 
 			/* User requests explicit download box */
 			s = client_arg("dl");
-			if (s && !strcmp(s, "1")) {
+			if (s && !(!strcmp(s, "0"))) {
 				d = rh_strdup(clstate->realpath);
 				t = rh_strdup(basename(d));
 				rh_asprintf(&d, "attachment; filename=\"%s\"", t);
@@ -1370,7 +1370,7 @@ _out:			destroy_argv(&tenvp);
 
 			/* User wants to view it in browser */
 			s = client_arg("vi");
-			if (s && !strcmp(s, "1")) {
+			if (s && !(!strcmp(s, "0"))) {
 				add_header(&clstate->sendheaders, "Content-Disposition", "inline");
 				/*
 				 * Ohh, if there is a binary like mime type, then
@@ -1592,15 +1592,15 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 
 		/* Text only listing */
 		s = client_arg("txt");
-		if (s && !strcmp(s, "1")) do_text = YES;
+		if (s && !(!strcmp(s, "0"))) do_text = YES;
 
 		/* No additional icon links, plain listing */
 		if (do_text == NO) {
 			s = client_arg("nodlh");
-			if (s && !strcmp(s, "1")) no_dl_hints = YES;
+			if (s && !(!strcmp(s, "0"))) no_dl_hints = YES;
 			if (no_dl_hints == NO) {
 				s = client_header("x-ryshttpd-nodlh");
-				if (s && !strcmp(s, "1")) no_dl_hints = YES;
+				if (s && !(!strcmp(s, "0"))) no_dl_hints = YES;
 			}
 			if (no_dl_hints == NO) {
 				s = client_header("User-Agent");
@@ -1650,7 +1650,8 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			|| !strcasecmp(s, "uid")) di_sortby = DI_SORTBY_OWNER;
 			else if (!strcasecmp(s, "group")
 			|| !strcasecmp(s, "gid")) di_sortby = DI_SORTBY_GROUP;
-			else if (!strcasecmp(s, "time")) di_sortby = DI_SORTBY_MTIME;
+			else if (!strcasecmp(s, "time")
+			|| !strcasecmp(s, "date")) di_sortby = DI_SORTBY_MTIME;
 			else if (!strcasecmp(s, "none")) di_sortby = 0;
 			else {
 				response_error(clstate, 400);
@@ -1658,7 +1659,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			}
 		}
 		s = client_arg("rsort");
-		if (s && !strcmp(s, "1")) di_reverse_sort = YES;
+		if (s && !(!strcmp(s, "0"))) di_reverse_sort = YES;
 
 		/* File names may be encoded in UTF-8, so force it */
 		add_header(&clstate->sendheaders, "Content-Type",
@@ -1745,9 +1746,14 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			sz = DYN_ARRAY_SZ(di);
 			di = rh_realloc(di, (sz+1) * sizeof(struct dir_items));
 			di[sz].it_name = rh_strdup(de->d_name);
-			if (S_ISDIR(stst.st_mode)) di[sz].it_type = PATH_IS_DIR;
-			else di[sz].it_type = PATH_IS_FILE;
-			di[sz].it_size = (rh_fsize)stst.st_size;
+			if (S_ISDIR(stst.st_mode)) {
+				di[sz].it_type = PATH_IS_DIR;
+				di[sz].it_size = (rh_fsize)0;
+			}
+			else {
+				di[sz].it_type = PATH_IS_FILE;
+				di[sz].it_size = (rh_fsize)stst.st_size;
+			}
 			di[sz].it_mode = stst.st_mode;
 			di[sz].it_owner = stst.st_uid;
 			di[sz].it_group = stst.st_gid;

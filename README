@@ -85,7 +85,6 @@ To be considered (long term):
 - HTTP/2.
 
 Not TODO (harmful or junk stuff):
-- directory listing sorting (takes much memory, inefficient),
 - virtual hosts of any form (other than restricting to regex),
 - Pure dialogue HTTP authentication of any form / 401 HTTP code,
 - Modules of any form and any other pluggable in code,

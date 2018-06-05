@@ -411,6 +411,79 @@ static void destroy_argv(char ***argv)
 	rh_free(uargv); *argv = NULL;
 }
 
+struct dir_items {
+	char *it_name; /* item file name */
+	int it_type; /* PATH_IS_FILE or PATH_IS_DIR */
+	rh_fsize it_size; /* item size */
+	mode_t it_mode; /* item Unix chmod */
+	uid_t it_owner; /* item Unix owner */
+	gid_t it_group; /* item Unix group */
+	time_t it_mtime; /* item modification time */
+};
+
+#define DI_SORTBY_NAME	1
+#define DI_SORTBY_TYPE	2
+#define DI_SORTBY_SIZE	3
+#define DI_SORTBY_OWNER	4
+#define DI_SORTBY_GROUP	5
+#define DI_SORTBY_MTIME	6
+
+static int di_sortby = DI_SORTBY_NAME;
+static rh_yesno di_reverse_sort;
+
+static int dir_sort_compare(const void *pdi1, const void *pdi2)
+{
+	const struct dir_items *di1 = pdi1;
+	const struct dir_items *di2 = pdi2;
+
+	if (di_reverse_sort == YES) {
+		di1 = pdi2;
+		di2 = pdi1;
+	}
+
+	if (di_sortby == DI_SORTBY_NAME) {
+_fallback:	return strcmp(di1->it_name, di2->it_name);
+	}
+	else if (di_sortby == DI_SORTBY_TYPE) {
+		if (di1->it_type == PATH_IS_DIR && di2->it_type != PATH_IS_DIR) return -1;
+		else if (di1->it_type == di2->it_type) goto _fallback;
+		else return 1;
+	}
+	else if (di_sortby == DI_SORTBY_SIZE) {
+		if (di1->it_size > di2->it_size) return -1;
+		else if (di1->it_size == di2->it_size) goto _fallback;
+		else return 1;
+	}
+	else if (di_sortby == DI_SORTBY_OWNER) {
+		if (di1->it_owner < di2->it_owner) return -1;
+		else if (di1->it_owner == di2->it_owner) goto _fallback;
+		else return 1;
+	}
+	else if (di_sortby == DI_SORTBY_GROUP) {
+		if (di1->it_group < di2->it_group) return -1;
+		else if (di1->it_group == di2->it_group) goto _fallback;
+		else return 1;
+	}
+	else if (di_sortby == DI_SORTBY_MTIME) {
+		if (di1->it_mtime > di2->it_mtime) return -1;
+		else if (di1->it_mtime == di2->it_mtime) goto _fallback;
+		else return 1;
+	}
+
+	return 0;
+}
+
+static void free_dir_items(struct dir_items *di)
+{
+	size_t sz, x;
+
+	sz = DYN_ARRAY_SZ(di);
+	if (sz == 0) return;
+
+	for (x = 0; x < sz; x++) pfree(di[x].it_name);
+	pfree(di);
+}
+
 #define cgisetenv(to, fmt, ss, dd)								\
 	do {											\
 		size_t sz;									\
@@ -1437,9 +1510,13 @@ _no_send:		/*
 		struct stat stst;
 		rh_yesno do_text = NO;
 		rh_yesno no_dl_hints = NO;
-		rh_yesno listed = NO;
 		char *dpath = NULL;
 		char *dname = NULL;
+		char *dargs = NULL;
+		size_t idx_from, idx_to, curr_idx;
+		struct dir_items *di;
+		char *entline, *mtime, *uname, *gname, *fsize;
+		size_t xsz;
 
 		/* POST is not permitted for directories */
 		if (clstate->method > REQ_METHOD_HEAD) {
@@ -1533,6 +1610,56 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			}
 		}
 
+		s = client_arg("idxfrom");
+		if (s) {
+			char *stoi;
+
+			idx_from = rh_str_size(s, &stoi);
+			if (!str_empty(stoi)) {
+				response_error(clstate, 400);
+				goto _done;
+			}
+		}
+		else idx_from = NOSIZE;
+		s = client_arg("idxto");
+		if (s) {
+			char *stoi;
+
+			idx_to = rh_str_size(s, &stoi);
+			if (!str_empty(stoi)) {
+				response_error(clstate, 400);
+				goto _done;
+			}
+		}
+		else idx_to = idx_from;
+		if ((idx_from != NOSIZE && idx_to == NOSIZE)
+		|| (idx_from == NOSIZE && idx_to != NOSIZE)
+		|| (idx_from > idx_to)) {
+			response_error(clstate, 400);
+			goto _done;
+		}
+
+		di_sortby = DI_SORTBY_NAME;
+		di_reverse_sort = NO;
+		s = client_arg("sortby");
+		if (s) {
+			if (!strcasecmp(s, "name")) di_sortby = DI_SORTBY_NAME;
+			else if (!strcasecmp(s, "type")) di_sortby = DI_SORTBY_TYPE;
+			else if (!strcasecmp(s, "size")) di_sortby = DI_SORTBY_SIZE;
+			else if (!strcasecmp(s, "owner")
+			|| !strcasecmp(s, "uid")) di_sortby = DI_SORTBY_OWNER;
+			else if (!strcasecmp(s, "group")
+			|| !strcasecmp(s, "gid")) di_sortby = DI_SORTBY_GROUP;
+			else if (!strcasecmp(s, "time")) di_sortby = DI_SORTBY_MTIME;
+			else if (!strcasecmp(s, "none")) di_sortby = 0;
+			else {
+				response_error(clstate, 400);
+				goto _done;
+			}
+		}
+		s = client_arg("rsort");
+		if (s && !strcmp(s, "1")) di_reverse_sort = YES;
+
 		/* File names may be encoded in UTF-8, so force it */
 		add_header(&clstate->sendheaders, "Content-Type",
 			do_text ? "text/plain; charset=utf-8" : "text/html; charset=utf-8");
@@ -1551,6 +1678,14 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 		if (do_text == NO) {
 			dpath = rh_strdup(clstate->path);
 			filter_special_htmlchars(&dpath);
+			if (clstate->strargs) {
+				s = rh_strdup(clstate->strargs);
+				filter_special_htmlchars(&s);
+				dargs = NULL;
+				rh_asprintf(&dargs, "?%s", s);
+				pfree(s);
+			}
+			else dargs = rh_strdup("");
 
 			d = NULL;
 			sz = rh_asprintf(&d, "<!DOCTYPE HTML>\n"
@@ -1581,16 +1716,17 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 		}
 
 		if (do_text == NO) {
-			sz = CSTR_SZ("<tr><td id=\"name\"><a href=\"../\">../</a></td></tr>\n");
+			d = NULL;
+			sz = rh_asprintf(&d, "<tr><td id=\"name\"><a href=\"../%s\">../</a></td></tr>\n", dargs);
+
 			response_chunk_length(clstate, sz);
-			response_send_data(clstate,
-				"<tr><td id=\"name\"><a href=\"../\">../</a></td></tr>\n", sz);
+			response_send_data(clstate, d, sz);
 			response_chunk_end(clstate);
 		}
 
+		di = NULL;
+		curr_idx = 0;
 		while ((de = readdir(dp))) {
-			char *entline, *mtime, *uname, *gname, *fsize;
-
 			if (!strcmp(de->d_name, ".")
 			|| !strcmp(de->d_name, "..")
 			|| strstr(de->d_name, rh_htaccess_name)) continue;
@@ -1603,91 +1739,24 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			&& regex_exec(clstate->hideindex_rgx, de->d_name) == YES)
 				continue;
 
-			entline = NULL;
-			mtime = getsdate(stst.st_mtime, LIST_DATE_FMT, NO);
-			uname = namebyuid(stst.st_uid);
-			gname = namebygid(stst.st_gid);
-			if (S_ISDIR(stst.st_mode)) {
-				if (do_text == YES) {
-					sz = rh_asprintf(&entline,
-						"%04o\t%s\t%s\t0 (DIR)\t%s\t%s%s%s/\n",
-						stst.st_mode & ~S_IFMT, uname, gname, mtime,
-						ppath(clstate->prepend_path), clstate->path, de->d_name
-					);
-				}
-				else {
-					dname = rh_strdup(de->d_name);
-					filter_special_htmlchars(&dname);
+			if ((idx_from != NOSIZE && curr_idx < idx_from)
+			|| (idx_to != NOSIZE && curr_idx > idx_to)) goto _inc_idx;
 
-					sz = rh_asprintf(&entline,
-						"<tr>"
-						"<td id=\"name\"><i><b><a href=\"%s%s%s/\">%s/</a></b></i></td>"
-						"<td>0\t(DIR)</td><td>%s</td><td>%s</td><td>%s</td>"
-						"</tr>\n",
-						ppath(clstate->prepend_path), dpath, dname, dname,
-						uname, gname, mtime
-					);
+			sz = DYN_ARRAY_SZ(di);
+			di = rh_realloc(di, (sz+1) * sizeof(struct dir_items));
+			di[sz].it_name = rh_strdup(de->d_name);
+			if (S_ISDIR(stst.st_mode)) di[sz].it_type = PATH_IS_DIR;
+			else di[sz].it_type = PATH_IS_FILE;
+			di[sz].it_size = (rh_fsize)stst.st_size;
+			di[sz].it_mode = stst.st_mode;
+			di[sz].it_owner = stst.st_uid;
+			di[sz].it_group = stst.st_gid;
+			di[sz].it_mtime = stst.st_mtime;
 
-					pfree(dname);
-				}
-			}
-			else {
-				fsize = rh_human_fsize((rh_fsize)stst.st_size);
-				if (do_text == YES) {
-					sz = rh_asprintf(&entline,
-						"%04o\t%s\t%s\t%llu (%s)\t%s\t%s%s%s\n",
-						stst.st_mode & ~S_IFMT, uname, gname,
-						(rh_fsize)stst.st_size, fsize, mtime,
-						ppath(clstate->prepend_path), clstate->path, de->d_name
-					);
-				}
-				else {
-					dname = rh_strdup(de->d_name);
-					filter_special_htmlchars(&dname);
-
-					if (no_dl_hints == YES) {
-						sz = rh_asprintf(&entline,
-							"<tr>"
-							"<td id=\"name\"><b><a href=\"%s%s%s\">%s</a></b></td>"
-							"<td>%llu\t(%s)</td><td>%s</td><td>%s</td><td>%s</td>"
-							"</tr>\n",
-							ppath(clstate->prepend_path), dpath, dname, dname,
-							(rh_fsize)stst.st_size, fsize, uname, gname, mtime
-						);
-
-					}
-					else {
-						sz = rh_asprintf(&entline,
-							"<tr>"
-							"<td id=\"name\"><b><a href=\"%s%s%s\">%s</a></b></td>"
-							"<td>%llu\t(%s)</td><td>%s</td><td>%s</td><td>%s</td>"
-							"<td><a href=\"%s%s%s?dl=1\" title=\"Download %s\"><img src=\"%s/_rsrc/download.png\" alt=\"Download %s\"></a></td>"
-							"<td><a href=\"%s%s%s?vi=1\" title=\"View %s\"><img src=\"%s/_rsrc/view.png\" alt=\"View %s\"></a></td>"
-							"</tr>\n",
-							ppath(clstate->prepend_path), dpath, dname, dname,
-							(rh_fsize)stst.st_size, fsize, uname, gname, mtime,
-							ppath(clstate->prepend_path), dpath, dname, dname, ppath(clstate->prepend_path), dname,
-							ppath(clstate->prepend_path), dpath, dname, dname, ppath(clstate->prepend_path), dname
-						);
-					}
-
-					pfree(dname);
-				}
-				pfree(fsize);
-			}
-			pfree(mtime);
-			pfree(uname);
-			pfree(gname);
-			sz = rh_strlrep(entline, sz+1, "//", "/");
-			response_chunk_length(clstate, sz);
-			response_send_data(clstate, entline, sz);
-			response_chunk_end(clstate);
-			pfree(entline);
-
-			listed = YES;
+_inc_idx:		curr_idx++;
 		}
 
-		if (listed == NO) {
+		if (di == NULL) {
 _failed_chdir:		if (do_text == YES) {
 				sz = CSTR_SZ("[Directory is empty]\n");
 				response_chunk_length(clstate, sz);
@@ -1701,8 +1770,99 @@ _failed_chdir:		if (do_text == YES) {
 					"<tr><td><i><b>Directory is empty</b></i></td></tr>\n", sz);
 				response_chunk_end(clstate);
 			}
+
+			goto _no_dir_items;
 		}
 
+		sz = DYN_ARRAY_SZ(di);
+		if (di_sortby > 0 && rh_no_dirsort == NO)
+			qsort(di, sz, sizeof(struct dir_items), dir_sort_compare);
+
+		for (x = 0; x < sz; x++) {
+			entline = NULL;
+			mtime = getsdate(di[x].it_mtime, LIST_DATE_FMT, NO);
+			uname = namebyuid(di[x].it_owner);
+			gname = namebygid(di[x].it_group);
+
+			if (di[x].it_type == PATH_IS_DIR) {
+				if (do_text == YES) {
+					xsz = rh_asprintf(&entline,
+						"%04o\t%s\t%s\t0 (DIR)\t%s\t%s%s%s/\n",
+						di[x].it_mode & ~S_IFMT, uname, gname, mtime,
+						ppath(clstate->prepend_path), clstate->path, di[x].it_name);
+				}
+				else {
+					dname = rh_strdup(di[x].it_name);
+					filter_special_htmlchars(&dname);
+
+					xsz = rh_asprintf(&entline,
+						"<tr>"
+						"<td id=\"name\"><i><b><a href=\"%s%s%s/%s\">%s/</a></b></i></td>"
+						"<td>0\t(DIR)</td><td>%s</td><td>%s</td><td>%s</td>"
+						"</tr>\n",
+						ppath(clstate->prepend_path), dpath, dname, dargs, dname,
+						uname, gname, mtime);
+
+					pfree(dname);
+				}
+			}
+			else {
+				fsize = rh_human_fsize(di[x].it_size);
+				if (do_text == YES) {
+					xsz = rh_asprintf(&entline,
+						"%04o\t%s\t%s\t%llu (%s)\t%s\t%s%s%s\n",
+						di[x].it_mode & ~S_IFMT, uname, gname,
+						di[x].it_size, fsize, mtime,
+						ppath(clstate->prepend_path), clstate->path, di[x].it_name);
+				}
+				else {
+					dname = rh_strdup(di[x].it_name);
+					filter_special_htmlchars(&dname);
+
+					if (no_dl_hints == YES) {
+						xsz = rh_asprintf(&entline,
+							"<tr>"
+							"<td id=\"name\"><b><a href=\"%s%s%s\">%s</a></b></td>"
+							"<td>%llu\t(%s)</td><td>%s</td><td>%s</td><td>%s</td>"
+							"</tr>\n",
+							ppath(clstate->prepend_path), dpath, dname, dname,
+							di[x].it_size, fsize, uname, gname, mtime);
+
+					}
+					else {
+						xsz = rh_asprintf(&entline,
+							"<tr>"
+							"<td id=\"name\"><b><a href=\"%s%s%s\">%s</a></b></td>"
+							"<td>%llu\t(%s)</td><td>%s</td><td>%s</td><td>%s</td>"
+							"<td><a href=\"%s%s%s?dl=1\" title=\"Download %s\"><img src=\"%s/_rsrc/download.png\" alt=\"Download %s\"></a></td>"
+							"<td><a href=\"%s%s%s?vi=1\" title=\"View %s\"><img src=\"%s/_rsrc/view.png\" alt=\"View %s\"></a></td>"
+							"</tr>\n",
+							ppath(clstate->prepend_path), dpath, dname, dname,
+							di[x].it_size, fsize, uname, gname, mtime,
+							ppath(clstate->prepend_path), dpath, dname, dname, ppath(clstate->prepend_path), dname,
+							ppath(clstate->prepend_path), dpath, dname, dname, ppath(clstate->prepend_path), dname);
+					}
+
+					pfree(dname);
+				}
+				pfree(fsize);
+			}
+
+			pfree(mtime);
+			pfree(uname);
+			pfree(gname);
+
+			xsz = rh_strlrep(entline, xsz+1, "//", "/");
+			response_chunk_length(clstate, xsz);
+			response_send_data(clstate, entline, xsz);
+			response_chunk_end(clstate);
+
+			pfree(entline);
+		}
+
+		free_dir_items(di);
+
+_no_dir_items:
 		if (do_text == NO) {
 			dname = rh_strdup(rh_ident);
 			filter_special_htmlchars(&dname);
@@ -1720,6 +1880,7 @@ _failed_chdir:		if (do_text == YES) {
 
 			pfree(dname);
 			pfree(dpath);
+			pfree(dargs);
 		}
 
 		response_chunk_length(clstate, 0);

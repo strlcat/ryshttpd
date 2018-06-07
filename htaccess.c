@@ -564,7 +564,7 @@ _rewrite:		/*
 					pss = ss;
 
 					ss += CSTR_SZ("arg_");
-					pp = find_header_value(clstate->headers, ss);
+					pp = find_arg_value(clstate->args, ss);
 					if (!pp) {
 						ss = pss;
 						goto _addit;

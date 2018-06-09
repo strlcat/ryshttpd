@@ -185,7 +185,7 @@ Note that htupload.cgi component included does NOT check for a forbidden
 "ratelimit_up number": same as ratelimit, but applied only to upload (from client to server) speed.
 "ratelimit_down number": same as ratelimit, but applied only to download
 	(from server to client) speed.
-"rewrite spec pattern destination": the experimental rewrite service. It will match pattern
+"rewrite spec [!]pattern destination": the experimental rewrite service. It will match pattern
 	directed by spec, parse destination string and overwrite it as the new pathspec for
 	request to continue, then it will partially restart the request again without
 	incrementing internal state. Please see htaccess.c source file for more info.
@@ -193,13 +193,15 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	Rewriting to internal resources is permitted too. FS lookups are restarted for
 	single matched rewrite. Note that rewrite is NOT recursive at this time!
 	Quotes surrounding pattern and destination are mandatory.
-"rematch spec pattern destination": same as "rewrite", but works recursively.
+	If '!' is specified before pattern, then match is inverted.
+"rematch spec [!]pattern destination": same as "rewrite", but works recursively.
 	CAUTION: improperly or vulnerable rematch rules may hang your httpd child
 	into a infinite loop! You must think three times before placing one.
-"matchip netaddr htaccess_cmd": match client IP address by specified netaddr subnetwork,
+"matchip [!]netaddr htaccess_cmd": match client IP address by specified netaddr subnetwork,
 	then execute any htaccess_cmd htaccess command listed above. The command permits
 	executing rewrite rule. Also, rewrite rule permits executing matchip command.
 	They even can go recursively.
+	If '!' is specified before netaddr, then match is inverted.
 
 Comments are supported, but only at the beginning of the line.
 Inline comments starting after a config item are NOT supported.

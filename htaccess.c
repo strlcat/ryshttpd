@@ -294,17 +294,24 @@ _ratelimit_down:	clstate->clinfo->ralimitdown.total = rh_str_human_fsize(d, &t);
 
 		else if (!strcasecmp(s, "matchip")) {
 			char *dpath;
+			rh_yesno R;
 
 _matchip:		t = strchr(d, ' ');
 			if (!t) continue;
 			*t = 0; t++;
+
+			if (*d == '!') {
+				d++;
+				R = YES;
+			}
+			else R = NO;
 
 			unquote(d, strlen(d)+1);
 			if (!strcasecmp(d, "any")) goto _do_matchip;
 
 			if (rh_parse_addr(d, &net) == NO) continue;
 			if (rh_parse_addr(clstate->ipaddr, &addr) == NO) continue;
-			if (rh_match_addr(&net, &addr) == NO) continue;
+			if (rh_match_addr(&net, &addr) == R) continue;
 
 _do_matchip:		dpath = rh_strdup(t);
 			unquote(dpath, rh_szalloc(dpath));
@@ -436,7 +443,7 @@ _do_matchip:		dpath = rh_strdup(t);
 			void *rgx;
 			char *ss, *dd, *tt, *dpath, *pat, *rwr;
 			size_t dpathsz;
-			rh_yesno f, F;
+			rh_yesno f, F, R;
 			size_t l;
 
 _rewrite:		/*
@@ -485,6 +492,12 @@ _rewrite:		/*
 			}
 			/* pat == pattern, rwr == rewriter */
 			if (!pat || !rwr) continue;
+
+			if (*pat == '!') {
+				pat++;
+				R = NO;
+			}
+			else R = YES;
 
 			/* choose by whom to match */
 			ss = dd = d; tt = dpath = NULL;
@@ -587,7 +600,7 @@ _addit:					rh_astrcat(&dpath, ss);
 				regex_free(rgx);
 				continue;
 			}
-			if (regex_exec(rgx, dpath) == YES) {
+			if (regex_exec(rgx, dpath) == R) {
 				dpath = rewrite_resolve_substs(rgx, ss, rwr);
 				dpathsz = rh_szalloc(dpath);
 				pfree(ss); /* was dpath */

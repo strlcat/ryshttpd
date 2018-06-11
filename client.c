@@ -329,7 +329,7 @@ static void catch_status_code(struct client_state *clstate, const void *rdata, s
 
 static void force_timeout_exit(int sig)
 {
-	block_signals(YES, (int []){SIGALRM, 0});
+	block_signals(YES, SIGALRM, 0);
 
 	if (clstate->nr_requests == 0) {
 		char *s = NULL;
@@ -388,7 +388,7 @@ static void client_atexit(int status)
 
 static void signal_exit(int sig)
 {
-	block_signals(YES, (int []){sig, 0});
+	block_signals(YES, sig, 0);
 
 	if (sig == SIGTERM
 	|| sig == SIGPIPE) { /* killed by CGI or improper pipe usage */

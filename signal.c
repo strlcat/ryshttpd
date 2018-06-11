@@ -28,12 +28,19 @@
 
 #include "httpd.h"
 
-void block_signals(rh_yesno block, int *n)
+void block_signals(rh_yesno block, ...)
 {
 	sigset_t ns;
-	size_t x;
+	size_t x, z;
+	va_list ap;
+
+	va_start(ap, block);
+	for (z = 0; va_arg(ap, int) > 0; z++);
+	va_end(ap);
 
 	sigemptyset(&ns);
-	for (x = 0; n[x]; x++) sigaddset(&ns, n[x]);
+	va_start(ap, block);
+	for (x = 0; x < z; x++) sigaddset(&ns, va_arg(ap, int));
+	va_end(ap);
 	sigprocmask(block == YES ? SIG_BLOCK : SIG_UNBLOCK, &ns, NULL);
 }

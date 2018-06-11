@@ -49,11 +49,9 @@
  * only when error happened and response_error function parsed and emitted it.
  */
 
-#define DATADEF (unsigned char [])
 static const struct embedded_resource rh_resources[] = {
 #include "resources.h"
 };
-#undef DATADEF
 
 const struct embedded_resource *find_resource(int restype, const char *str)
 {

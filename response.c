@@ -181,7 +181,11 @@ void response_error(struct client_state *clstate, int status)
 
 	rsp = find_response(status);
 	if (!rsp) rsp = find_response(500);
-	rsrc = find_resource(RESTYPE_NAME, "error.html");
+	s = NULL;
+	rh_asprintf(&s, "error%d.html", status);
+	rsrc = find_resource(RESTYPE_NAME, s);
+	if (!rsrc) rsrc = find_resource(RESTYPE_NAME, "error.html");
+	pfree(s);
 
 	if (clstate->prepend_path) {
 		drsrc = clone_resource(rsrc);
@@ -208,6 +212,7 @@ _tryagain:
 	errdata = rh_realloc(errdata, sz);
 	APPEND_FSA(fsa, nr_fsa, "RH_ERROR_STR", 0, "%s", rsp->response);
 	APPEND_FSA(fsa, nr_fsa, "RH_IDENT_STR", 0, "%s", rh_ident);
+	APPEND_FSA(fsa, nr_fsa, "RH_DATE_STR", 0, "%s", clstate->request_date);
 	rh_memzero(&fst, sizeof(struct fmtstr_state));
 	fst.args = fsa;
 	fst.nargs = nr_fsa;

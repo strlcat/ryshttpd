@@ -35,7 +35,7 @@ void usage(void)
 #ifdef WITH_TLS
 		"<-I/-T cert.crt:cert.key> [-P tlsport] "
 #endif
-		"[-4FV] [-p port] [-l logfile] [-O OPTION,...]", progname);
+		"[-4FV] [-R resdef] [-p port] [-l logfile] [-O OPTION,...]", progname);
 	rh_say("\n");
 	rh_say("  -r httproot: (mandatory) specify http root directory to serve files from");
 	rh_say("  -p port: specify alternative port number to bind to");
@@ -51,6 +51,18 @@ void usage(void)
 		"    It accepts strftime format, so filename may include current date\n"
 		"    \"-\" as logfile redirects log to stdout rather than file (use with -F)");
 	rh_say("\n");
+	rh_say("  -R resdef: load custom resource to be used (as error page for example):");
+	rh_say("    The format of resdef: filepath:path:name:args:mimetype");
+	rh_say("    filepath is physical path of file in filesystem to be loaded");
+	rh_say("    path is arbitrary http root path, can be any or NULL");
+	rh_say("    if path begins with \"<text>\", then a text after the prefix will be");
+	rh_say("    copied into resource, and no file will be opened and read.");
+	rh_say("    name is resource lookup name, for error pages it must be");
+	rh_say("      of form of errorNNN.html, where NNN is HTTP error code.");
+	rh_say("      name cannot be NULL - it must be always specified.");
+	rh_say("    args is argument string on which resource may be shown too. Can be NULL");
+	rh_say("    mimetype must be specified as a simple string and cannot be NULL.");
+	rh_say("    NULL must be specified as \"<null>\", not as an empty specifier.");
 	rh_say("  -O OPTION: specify advanced option (or comma separated list of options):");
 	rh_say("    -O hostnames=rgx: set regex hostname(s). If client provides something\n"
 		"      other than matched, or nothing, then 404 error is returned to him.");

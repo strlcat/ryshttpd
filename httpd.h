@@ -477,6 +477,9 @@ const struct embedded_resource *find_resource_args(const char *path, const char 
 struct embedded_resource *clone_resource(const struct embedded_resource *rsrc);
 rh_yesno resource_prepend_path(struct embedded_resource *rsrc, const char *ppath);
 void free_resource(struct embedded_resource *rsrc);
+rh_yesno load_user_resource(
+	const char *resfpath, const char *htpath, const char *name,
+	const char *htargs, const char *mimetype);
 
 struct http_header {
 	char *name; /* name of header */

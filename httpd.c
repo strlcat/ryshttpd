@@ -276,6 +276,7 @@ int main(int argc, char **argv)
 {
 	int c;
 	char *s, *d, *t, *p, *T, *stoi;
+	char *lr_fpath, *lr_path, *lr_name, *lr_args, *lr_mimetype;
 
 	svpid = getpid();
 	set_progname(*argv);
@@ -304,7 +305,7 @@ int main(int argc, char **argv)
 	rh_logfile = rh_malloc(RH_ALLOC_MAX);
 	rh_logfmt = rh_strdup(RH_DEFAULT_LOG_FORMAT);
 
-	while ((c = getopt(argc, argv, "hr:4Ip:P:T:l:O:FV")) != -1) {
+	while ((c = getopt(argc, argv, "hr:4Ip:P:T:l:O:FR:V")) != -1) {
 		switch (c) {
 			case 'r': SETOPT(rh_root_dir, optarg); break;
 			case '4': FLIP_YESNO(ipv4_only); break;
@@ -330,6 +331,27 @@ int main(int argc, char **argv)
 #endif
 			case 'l': SETOPT(rh_logfile_fmt, optarg); break;
 			case 'F': FLIP_YESNO(no_daemonise); break;
+			case 'R':
+				lr_fpath = lr_path = lr_name = lr_args = lr_mimetype = NULL;
+				T = rh_strdup(optarg);
+				s = d = T; t = NULL;
+				while ((s = strtok_r(d, ":", &t))) {
+					if (d) d = NULL;
+
+					if (!lr_fpath) lr_fpath = s;
+					else if (!lr_path) lr_path = s;
+					else if (!lr_name) lr_name = s;
+					else if (!lr_args) lr_args = s;
+					else if (!lr_mimetype) lr_mimetype = s;
+					else break;
+				}
+				if (!lr_fpath || !lr_path
+				|| !lr_name || !lr_args || !lr_mimetype)
+					xexits("-R: all fields must be specified");
+				if (load_user_resource(lr_fpath, lr_path, lr_name, lr_args, lr_mimetype) == NO)
+					xerror("%s: cannot load resource from file", lr_fpath);
+				pfree(T);
+				break;
 			case 'O':
 				T = rh_strdup(optarg);
 				s = d = T; t = NULL;

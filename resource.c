@@ -53,34 +53,54 @@ static const struct embedded_resource rh_resources[] = {
 #include "resources.h"
 };
 
-const struct embedded_resource *find_resource(int restype, const char *str)
+static struct embedded_resource *rh_user_resources;
+
+static const struct embedded_resource *do_find_resource(
+	const struct embedded_resource *rsrcp, size_t rsrcsz, int restype, const char *str)
 {
 	size_t x;
 
 	if (!str || str_empty(str)) return NULL;
+	if (rsrcsz == 0) return NULL;
 
-	for (x = 0; x < STAT_ARRAY_SZ(rh_resources); x++) {
+	for (x = 0; x < rsrcsz; x++) {
 		switch (restype) {
 			case RESTYPE_PATH:
-				if (rh_resources[x].path
-				&& !strcmp(rh_resources[x].path, str))
-					return &rh_resources[x];
+				if (rsrcp[x].path
+				&& !strcmp(rsrcp[x].path, str))
+					return &rsrcp[x];
 				break;
 			case RESTYPE_NAME:
-				if (rh_resources[x].name
-				&& !strcmp(rh_resources[x].name, str))
-					return &rh_resources[x];
+				if (rsrcp[x].name
+				&& !strcmp(rsrcp[x].name, str))
+					return &rsrcp[x];
 				break;
 			case RESTYPE_ARGS:
-				if (rh_resources[x].args
-				&& !strcmp(rh_resources[x].args, str))
-					return &rh_resources[x];
+				if (rsrcp[x].args
+				&& !strcmp(rsrcp[x].args, str))
+					return &rsrcp[x];
 				break;
 			default: return NULL;
 		}
 	}
 
 	return NULL;
+}
+
+const struct embedded_resource *find_resource(int restype, const char *str)
+{
+	const struct embedded_resource *rsrcp, *r;
+	size_t sz;
+
+	rsrcp = rh_user_resources;
+	sz = DYN_ARRAY_SZ(rh_user_resources);
+	r = do_find_resource(rsrcp, sz, restype, str);
+	if (r) return r;
+
+	rsrcp = rh_resources;
+	sz = STAT_ARRAY_SZ(rh_resources);
+	r = do_find_resource(rsrcp, sz, restype, str);
+	return r;
 }
 
 const struct embedded_resource *find_resource_args(const char *path, const char *args)
@@ -154,14 +174,81 @@ _extend:
 	return YES;
 }
 
-void free_resource(struct embedded_resource *rsrc)
+static void do_free_resource(struct embedded_resource *rsrc)
 {
 	pfree(rsrc->path);
 	pfree(rsrc->name);
 	pfree(rsrc->args);
-
 	pfree(rsrc->mimetype);
 	pfree(rsrc->data);
+}
 
+void free_resource(struct embedded_resource *rsrc)
+{
+	do_free_resource(rsrc);
 	pfree(rsrc);
+}
+
+rh_yesno load_user_resource(
+	const char *resfpath, const char *htpath, const char *name,
+	const char *htargs, const char *mimetype)
+{
+	int fd;
+	rh_yesno filesz;
+	size_t sz;
+	struct stat stst;
+
+	if (!strncmp(resfpath, "<text>", CSTR_SZ("<text>"))) {
+		fd = -1;
+		resfpath += CSTR_SZ("<text>");
+		filesz = (rh_fsize)strlen(resfpath);
+		goto _textres;
+	}
+
+	fd = open(resfpath, O_RDONLY);
+	if (fd == -1) return NO;
+
+	if (fstat(fd, &stst) == -1) {
+		close(fd);
+		return NO;
+	}
+
+	filesz = rh_fdsize(fd);
+	if (filesz == NOFSIZE) {
+		close(fd);
+		return NO;
+	}
+	if (filesz != (rh_fsize)stst.st_size) {
+		close(fd);
+		return NO;
+	}
+
+_textres:
+	sz = DYN_ARRAY_SZ(rh_user_resources);
+	rh_user_resources = rh_realloc(rh_user_resources, (sz+1) * sizeof(struct embedded_resource));
+	if (strcmp(htpath, "<null>") != 0) rh_user_resources[sz].path = rh_strdup(htpath);
+	rh_user_resources[sz].name = rh_strdup(name);
+	if (strcmp(htargs, "<null>") != 0) rh_user_resources[sz].args = rh_strdup(htargs);
+	rh_user_resources[sz].mimetype = rh_strdup(mimetype);
+	rh_user_resources[sz].is_static = NO;
+	rh_user_resources[sz].lastmod = stst.st_mtime;
+
+	rh_user_resources[sz].szdata = (size_t)filesz;
+	rh_user_resources[sz].data = rh_malloc(rh_user_resources[sz].szdata+1);
+
+	if (fd == -1) {
+		rh_strlcpy(rh_user_resources[sz].data, resfpath, rh_user_resources[sz].szdata+1);
+		return YES;
+	}
+
+	if (io_read_data(fd, rh_user_resources[sz].data, rh_user_resources[sz].szdata, NO, NULL) == NOSIZE) {
+		do_free_resource(&rh_user_resources[sz]);
+		sz = DYN_ARRAY_SZ(rh_user_resources);
+		rh_user_resources = rh_realloc(rh_user_resources, (sz-1) * sizeof(struct embedded_resource));
+		close(fd);
+		return NO;
+	}
+
+	close(fd);
+	return YES;
 }

@@ -62,6 +62,7 @@ char *rh_dir_prepend_path;
 #ifndef WITH_LIBMAGIC
 char *rh_content_charset;
 #endif
+char *rh_list_date_fmt;
 unsigned long rh_client_request_timeout = RH_DEFAULT_REQUEST_TIMEOUT;
 unsigned long rh_client_keepalive_timeout = RH_DEFAULT_KEEPALIVE_TIMEOUT;
 size_t rh_client_keepalive_requests = RH_DEFAULT_KEEPALIVE_REQUESTS;
@@ -304,6 +305,7 @@ int main(int argc, char **argv)
 	rh_cgi_path = rh_strdup(RH_DEFAULT_CGI_PATH);
 	rh_logfile = rh_malloc(RH_ALLOC_MAX);
 	rh_logfmt = rh_strdup(RH_DEFAULT_LOG_FORMAT);
+	rh_list_date_fmt = rh_strdup(LIST_DATE_FMT);
 
 	while ((c = getopt(argc, argv, "hr:4Ip:P:T:l:O:FR:V")) != -1) {
 		switch (c) {
@@ -411,6 +413,7 @@ int main(int argc, char **argv)
 #ifndef WITH_LIBMAGIC
 					else if (!strcmp(s, "content_charset")) SETOPT(rh_content_charset, p);
 #endif
+					else if (!strcmp(s, "list_date_format")) SETOPT(rh_list_date_fmt, p);
 					else if (!strcmp(s, "follow_symlinks")) FLIP_YESNO(rh_follow_symlinks);
 					else if (!strcmp(s, "insecure_htaccess")) FLIP_YESNO(rh_insecure_htaccess);
 					else if (!strcmp(s, "no_cache_headers")) FLIP_YESNO(rh_no_cache_headers);

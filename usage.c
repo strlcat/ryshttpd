@@ -104,8 +104,9 @@ void usage(void)
 		"      has access to reassign this prepend string with it's own using X-Base-Path header.\n"
 		"      Note that ending forward slash is required!");
 #ifndef WITH_LIBMAGIC
-	rh_say("    -O content_charset: set Content-Type \"charset\" to this value for text files");
+	rh_say("    -O content_charset=str set Content-Type \"charset\" to this value for text files");
 #endif
+	rh_say("    -O list_date_format=str: set date and time format for directory lists");
 	rh_say("    -O follow_symlinks: follow symlinks, even if they lead outside of http root");
 	rh_say("    -O insecure_htaccess: do not check .htaccess files to be writable by process");
 	rh_say("    -O regex_no_case: toggle regex case sensitivity globally");

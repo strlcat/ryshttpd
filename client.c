@@ -1786,7 +1786,7 @@ _failed_chdir:		if (do_text == YES) {
 
 		for (x = 0; x < sz; x++) {
 			entline = NULL;
-			mtime = getsdate(di[x].it_mtime, LIST_DATE_FMT, NO);
+			mtime = getsdate(di[x].it_mtime, rh_list_date_fmt, NO);
 			uname = namebyuid(di[x].it_owner);
 			gname = namebygid(di[x].it_group);
 

@@ -150,6 +150,7 @@ extern char *rh_dir_prepend_path;
 #ifndef WITH_LIBMAGIC
 extern char *rh_content_charset;
 #endif
+extern char *rh_list_date_fmt;
 extern unsigned long rh_client_request_timeout;
 extern unsigned long rh_client_keepalive_timeout;
 extern size_t rh_client_keepalive_requests;

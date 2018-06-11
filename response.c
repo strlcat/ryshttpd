@@ -205,27 +205,32 @@ void response_error(struct client_state *clstate, int status)
 	 * Parse error body template.
 	 * From the first start it should fit the space.
 	 */
-	sz = ADDHALF_TO(rsrc->szdata);
 	s = rh_memdup(rsrc->data, rsrc->szdata);
 	s = rh_realloc(s, rsrc->szdata+1);
-_tryagain:
-	errdata = rh_realloc(errdata, sz);
+	sz = ADDHALF_TO(rsrc->szdata);
+	errdata = rh_malloc(sz);
+
 	APPEND_FSA(fsa, nr_fsa, "RH_ERROR_STR", 0, "%s", rsp->response);
 	APPEND_FSA(fsa, nr_fsa, "RH_IDENT_STR", 0, "%s", rh_ident);
 	APPEND_FSA(fsa, nr_fsa, "RH_DATE_STR", 0, "%s", clstate->request_date);
-	rh_memzero(&fst, sizeof(struct fmtstr_state));
+
+_again:	rh_memzero(&fst, sizeof(struct fmtstr_state));
 	fst.args = fsa;
 	fst.nargs = nr_fsa;
 	fst.fmt = s;
 	fst.result = errdata;
-	fst.result_sz = rh_szalloc(errdata);
+	fst.result_sz = sz;
+
 	parse_fmtstr(&fst);
-	pfree(fsa);
+
 	if (fst.trunc) {
 		sz += rsrc->szdata;
 		if (sz > RH_XSALLOC_MAX) xexits("bad errdata parse state");
-		goto _tryagain;
+		errdata = rh_realloc(errdata, sz);
+		goto _again;
 	}
+
+	pfree(fsa);
 	pfree(s);
 
 	/* Cleanup of double slashes in paths (FIXME) */

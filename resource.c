@@ -238,6 +238,7 @@ _textres:
 
 	if (fd == -1) {
 		rh_strlcpy(rh_user_resources[sz].data, resfpath, rh_user_resources[sz].szdata+1);
+		parse_escapes(rh_user_resources[sz].data, rh_user_resources[sz].szdata+1);
 		return YES;
 	}
 

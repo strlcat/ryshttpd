@@ -205,7 +205,7 @@ void response_error(struct client_state *clstate, int status)
 	 * Parse error body template.
 	 * From the first start it should fit the space.
 	 */
-	sz = (rsrc->szdata / 2) * 3;
+	sz = ADDHALF_TO(rsrc->szdata);
 	s = rh_memdup(rsrc->data, rsrc->szdata);
 	s = rh_realloc(s, rsrc->szdata+1);
 _tryagain:

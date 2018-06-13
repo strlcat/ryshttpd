@@ -737,6 +737,8 @@ _addit:					rh_astrcat(&dpath, ss);
 				clstate->is_rsrc = NO;
 				clstate->is_indx = NO;
 				clstate->cgi_mode = 0;
+				pfree(clstate->prevpath);
+				clstate->prevpath = rh_strdup(clstate->path);
 				pfree(clstate->path);
 				clstate->path = rh_strdup(dpath);
 				filter_dotdots(clstate->path, rh_szalloc(clstate->path));

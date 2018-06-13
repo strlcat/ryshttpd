@@ -564,6 +564,7 @@ struct client_state {
 	rh_yesno was_rewritten; /* single rewrite, without recursion, was matched before */
 	rh_yesno noindex; /* htaccess forbids to index this directory */
 	void *hideindex_rgx; /* htaccess "hideindex" regex matching data */
+	char *prevpath; /* saved previous path in case of directory listing */
 
 	/* Response status */
 	char *status;

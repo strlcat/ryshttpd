@@ -291,6 +291,7 @@ static void reset_client_state(struct client_state *clstate)
 		regex_free(clstate->hideindex_rgx);
 		clstate->hideindex_rgx = NULL;
 	}
+	pfree(clstate->prevpath);
 
 	pfree(clstate->status);
 
@@ -1533,6 +1534,13 @@ _no_send:		/*
 		if (x > 0 && clstate->path[x-1] != '/')
 			rh_astrcat(&clstate->path, "/");
 
+		/* Same for prevpath (if there is any) */
+		if (clstate->prevpath) {
+			x = strnlen(clstate->prevpath, RH_XSALLOC_MAX);
+			if (x > 0 && clstate->prevpath[x-1] != '/')
+				rh_astrcat(&clstate->prevpath, "/");
+		}
+
 		/*
 		 * But still pass a version without forward slash to verify_htaccess.
 		 */
@@ -1677,7 +1685,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 		if (clstate->method == REQ_METHOD_HEAD) goto _no_list;
 
 		if (do_text == NO) {
-			dpath = rh_strdup(clstate->path);
+			dpath = rh_strdup(clstate->prevpath ? clstate->prevpath : clstate->path);
 			filter_special_htmlchars(&dpath);
 			if (clstate->strargs) {
 				s = rh_strdup(clstate->strargs);
@@ -1795,7 +1803,7 @@ _failed_chdir:		if (do_text == YES) {
 					xsz = rh_asprintf(&entline,
 						"%04o\t%s\t%s\t0 (DIR)\t%s\t%s%s%s/\n",
 						di[x].it_mode & ~S_IFMT, uname, gname, mtime,
-						ppath(clstate->prepend_path), clstate->path, di[x].it_name);
+						ppath(clstate->prepend_path), clstate->prevpath ? clstate->prevpath : clstate->path, di[x].it_name);
 				}
 				else {
 					dname = rh_strdup(di[x].it_name);
@@ -1819,7 +1827,7 @@ _failed_chdir:		if (do_text == YES) {
 						"%04o\t%s\t%s\t%llu (%s)\t%s\t%s%s%s\n",
 						di[x].it_mode & ~S_IFMT, uname, gname,
 						di[x].it_size, fsize, mtime,
-						ppath(clstate->prepend_path), clstate->path, di[x].it_name);
+						ppath(clstate->prepend_path), clstate->prevpath ? clstate->prevpath : clstate->path, di[x].it_name);
 				}
 				else {
 					dname = rh_strdup(di[x].it_name);

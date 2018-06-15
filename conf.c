@@ -31,7 +31,6 @@
 struct config {
 	void *cfgdata; /* config file as whole */
 	char *d, *t; /* for strtok_r */
-	rh_yesno conv; /* \r\n was converted into \n */
 };
 
 rh_yesno is_comment(const char *s)
@@ -47,22 +46,28 @@ rh_yesno is_comment(const char *s)
 
 void *load_config(int fd)
 {
-	size_t x;
+	size_t x, sz;
 	struct config *r;
+	char *s;
 
 	r = rh_malloc(sizeof(struct config));
 
-	x = (size_t)rh_fdsize(fd);
+	sz = (size_t)rh_fdsize(fd);
+	if (sz == NOSIZE) {
+		free_config(r);
+		return NULL;
+	}
+
+	r->cfgdata = rh_malloc(sz+1); /* so last line will not face xmalloc safety zone. */
+	x = io_read_data(fd, r->cfgdata, sz, NO, NULL);
 	if (x == NOSIZE) {
 		free_config(r);
 		return NULL;
 	}
 
-	r->cfgdata = rh_malloc(x+1); /* so last line will not face xmalloc safety zone. */
-	if (io_read_data(fd, r->cfgdata, x, NO, NULL) == NOSIZE) {
-		free_config(r);
-		return NULL;
-	}
+	x = rh_strlrep(r->cfgdata, x, "\r\n", "\n");
+	r->cfgdata = rh_realloc(r->cfgdata, x+1);
+	s = r->cfgdata+x; *s = 0;
 
 	r->d = r->cfgdata;
 	return (void *)r;
@@ -76,15 +81,10 @@ char *get_config_line(void *config)
 	if (!config) return NULL;
 	cfg = config;
 
-	if (cfg->conv == NO) {
-		size_t sz = rh_szalloc(cfg->cfgdata);
-		rh_strlrep(cfg->cfgdata, sz, "\r\n", "\n");
-		cfg->conv = YES;
-	}
-
 _again:
-	line = strtok_r(cfg->t ? NULL : cfg->d, "\n", &cfg->t);
+	line = strtok_r(cfg->d, "\n", &cfg->t);
 	if (!line) return NULL;
+	if (cfg->d) cfg->d = NULL;
 	if (is_comment(line)) goto _again;
 
 	return line;

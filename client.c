@@ -485,6 +485,35 @@ static void free_dir_items(struct dir_items *di)
 	pfree(di);
 }
 
+static char *rh_which(const char *envpath, const char *name)
+{
+	char *T, *s, *d, *t;
+	char *r;
+	rh_yesno x;
+
+	T = rh_strdup(envpath);
+	s = d = T; t = r = NULL; x = NO;
+	while ((s = strtok_r(d, ":", &t))) {
+		if (d) d = NULL;
+
+		rh_asprintf(&r, "%s/%s", s, name);
+		if (is_exec(r)) {
+			x = YES;
+			break;
+		}
+	}
+
+	pfree(T);
+
+	if (x == YES) {
+		shrink_dynstr(&r);
+		return r;
+	}
+
+	pfree(r);
+	return NULL;
+}
+
 #define cgisetenv(to, fmt, ss, dd)								\
 	do {											\
 		size_t sz;									\
@@ -1017,7 +1046,7 @@ _cgiserver:		tenvp = NULL;
 			err = NO;
 
 			/* Do not expose potential CGI file contents */
-			if (!is_exec(clstate->realpath)) {
+			if (rh_try_shell_exec == NO && !is_exec(clstate->realpath)) {
 				response_error(clstate, 403);
 				goto _done;
 			}
@@ -1171,8 +1200,19 @@ _cgiserver:		tenvp = NULL;
 					close(fpfd[1]);
 					close(tpfd[0]);
 					err = execve(clstate->realpath, targv, tenvp);
-					if (err == -1)
+					if (err == -1) {
+						char *sh;
+
+						if (rh_try_shell_exec == NO) goto _xclerr;
+
+						sh = rh_which(rh_cgi_path, "sh");
+						if (!sh) {
+							errno = ENOENT;
+							goto _xclerr;
+						}
+						err = execle(sh, "sh", clstate->realpath, NULL, tenvp);
 _xclerr:					write(epfd[1], &errno, sizeof(errno));
+					}
 					close(epfd[1]);
 					rh_exit(127);
 					break;

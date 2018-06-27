@@ -111,6 +111,7 @@ void usage(void)
 	rh_say("    -O insecure_htaccess: do not check .htaccess files to be writable by process");
 	rh_say("    -O regex_no_case: toggle regex case sensitivity globally");
 	rh_say("    -O no_dirsort: turn off directory listing sorting");
+	rh_say("    -O try_shell_exec: if CGI direct exec fails, try to run program through shell");
 	rh_say("    -O no_cache_headers: disable mandatory cache related headers");
 	rh_say("    -O rdwr_bufsize=size: set read/write temporary client buffer size");
 	rh_say("    -O log_bufsize=size: set log 'pipe' and server log buffer size");

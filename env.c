@@ -56,7 +56,7 @@ void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_st
 	APPEND_FSA(tfsa, nr_tfsa, "httpident", 0, "%s", rh_ident);
 	APPEND_FSA(tfsa, nr_tfsa, "httproot", 0, "%s", rh_root_dir);
 	APPEND_FSA(tfsa, nr_tfsa, "logfile", 0, "%s", rh_logfile);
-	APPEND_FSA(tfsa, nr_tfsa, "switch_user", 0, "%s", rh_chroot_dir);
+	APPEND_FSA(tfsa, nr_tfsa, "chroot", 0, "%s", rh_chroot_dir);
 	APPEND_FSA(tfsa, nr_tfsa, "switch_user", 0, "%s", rh_switch_user);
 	APPEND_FSA(tfsa, nr_tfsa, "switch_euser", 0, "%s", rh_switch_euser);
 	APPEND_FSA(tfsa, nr_tfsa, "switch_group", 0, "%s", rh_switch_group);

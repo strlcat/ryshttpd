@@ -1089,7 +1089,10 @@ _cgiserver:		tenvp = NULL;
 			cgisetenv(t, "%s=%s", "SERVER_PROTOCOL", d);
 			pfree(d);
 
-			cgisetenv(t, "%s=%s", "SERVER_PORT", rh_port_s);
+			cgisetenv(t, "%s=%s", "SERVER_PORT", clinfo->servport);
+#ifdef WITH_TLS
+			if (rh_tlsport_s) cgisetenv(t, "%s=%s", "SERVER_TLS_PORT", rh_tlsport_s);
+#endif
 			cgisetenv(t, "%s=%s", "REMOTE_PORT", clinfo->port);
 
 			cgisetenv(t, "%s=%s", "PWD", wdir);
@@ -1122,6 +1125,23 @@ _cgiserver:		tenvp = NULL;
 
 			if (clstate->prepend_path)
 				cgisetenv(t, "%s=%s", "SERVER_PREPEND_PATH", clstate->prepend_path);
+
+			cgisetenv(t, "%s=%s", "SERVER_ROOT", rh_root_dir);
+			if (rh_chroot_dir) cgisetenv(t, "%s=%s", "SERVER_CHROOT", rh_chroot_dir);
+			switch (clinfo->af) {
+				case AF_INET: d = "IPv4"; break;
+				case AF_INET6: d = "IPv6"; break;
+				default: d = ""; break;
+			}
+			cgisetenv(t, "%s=%s", "CLIENT_ADDR_FAMILY", d);
+			cgisetenv(t, "%s=%s", "CLIENT_ADDR", clinfo->ipaddr);
+#ifdef WITH_TLS
+			cgisetenv(t, "%s=%s", "CLIENT_PROTOCOL", clinfo->cltls ? "https" : "http");
+#else
+			cgisetenv(t, "%s=%s", "CLIENT_PROTOCOL", "http");
+#endif
+			cgisetenv(t, "%s=%u", "CLIENT_KEEP_ALIVE", clstate->is_keepalive == YES ? 1 : 0);
+			cgisetenv(t, "%s=%u", "REQUEST_NUMBER", clstate->nr_requests);
 
 			s = client_header("Host");
 			if (s) cgisetenv(t, "%s=%s", "HTTP_HOST", s);

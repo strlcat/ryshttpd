@@ -265,6 +265,7 @@ static void reset_client_state(struct client_state *clstate)
 
 	pfree(clstate->realpath);
 	clstate->filedir = 0;
+	clstate->wants_dir = NO;
 	if (clstate->file_fd != 0
 	&& clstate->file_fd != -1) {
 		close(clstate->file_fd);
@@ -746,14 +747,16 @@ _malformed:
 	pfree(t);
 
 	/* do security filtering */
-	filter_dotdots(clstate->path, rh_szalloc(clstate->path));
+	x = strnlen(clstate->path, RH_XSALLOC_MAX);
+	if (x > 0 && clstate->path[x-1] == '/') clstate->wants_dir = YES;
+	x = filter_dotdots(clstate->path, rh_szalloc(clstate->path));
 	if (clstate->strargs) {
 		filter_dotdots(clstate->strargs, rh_szalloc(clstate->strargs));
 		clstate->args = parse_args(clstate->strargs);
 	}
 
 	/* If result if filtering was devastative, then someone is misbehaving. */
-	if (str_empty(clstate->path)) {
+	if (x == 0 || str_empty(clstate->path)) {
 		response_error(clstate, 400);
 		goto _done;
 	}
@@ -871,6 +874,12 @@ _hta_rewrite:
 _defres:	if (clstate->method > REQ_METHOD_HEAD) {
 			add_header(&clstate->sendheaders, "Allow", "GET, HEAD");
 			response_error(clstate, 405);
+			goto _done;
+		}
+
+		/* currently not serving "directory" resources. */
+		if (clstate->wants_dir == YES) {
+			response_error(clstate, 400);
 			goto _done;
 		}
 
@@ -1023,6 +1032,12 @@ _not_found:
 		/* Verify user not requesting htaccess control file */
 		if (is_htaccess(clstate->realpath)) {
 			response_error(clstate, 403);
+			goto _done;
+		}
+
+		/* user wanted directory but this is not a directory - fail. */
+		if (clstate->wants_dir == YES) {
+			response_error(clstate, 400);
 			goto _done;
 		}
 

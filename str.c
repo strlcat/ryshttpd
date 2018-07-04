@@ -322,17 +322,17 @@ _cont:		s = d+1;
 
 static size_t remove_strings(char *str, size_t strsz, ...)
 {
-	size_t n, x;
+	size_t n, x, r;
 	va_list ap;
 
 	va_start(ap, strsz);
 	for (n = 0; va_arg(ap, const char *); n++);
 	va_end(ap);
 	va_start(ap, strsz);
-	for (x = 0; x < n; x++) rh_strlrep(str, strsz, va_arg(ap, const char *), NULL);
+	for (x = 0; x < n; x++) r = rh_strlrep(str, strsz, va_arg(ap, const char *), NULL);
 	va_end(ap);
 
-	return strnlen(str, strsz);
+	return r;
 }
 
 size_t filter_dotdots(char *str, size_t strsz)

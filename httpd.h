@@ -547,6 +547,7 @@ struct client_state {
 	char *realpath; /* resolved path with rh_realpath */
 	int filedir; /* resolved as file or directory? */
 	int file_fd; /* if file, then this is it's open fd for IO ops */
+	rh_yesno wants_dir; /* client wants a directory, answer with error if not a directory */
 	rh_yesno is_exec; /* if file, will it be executed? */
 	rh_yesno is_rsrc; /* it was a fake file: internal resource. */
 	rh_yesno is_indx; /* set if was redirected by index regexmatch */

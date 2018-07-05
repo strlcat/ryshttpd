@@ -1,10 +1,10 @@
 /*
- * ryshttpd -- small, plain, fast embedded http server.
+ * xmalloc -- a safe and precise memory allocation wrapper.
  *
- * ryshttpd is copyrighted:
+ * xmalloc is copyrighted:
  * Copyright (C) 2018 Andrey Rys. All rights reserved.
  *
- * ryshttpd is licensed to you under the terms of std. MIT/X11 license:
+ * xmalloc is licensed to you under the terms of std. MIT/X11 license:
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -26,14 +26,13 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/*
- * This is a wrapper around host malloc to support telling the sizes
- * of allocated items easily, and it also verifies that object was not overflowed.
- * It ensures at least proper aligning on platforms where size_t is greater than 2.
- * This code must be portable.
- */
+#include "xmalloc.h"
+#include <stdlib.h>
+#include <string.h>
 
-#include "httpd.h"
+#define yesno int
+#define NO 0
+#define YES 1
 
 #define ALIGN_SIZES 4
 #define PROPER_ALIGN (sizeof(size_t)*ALIGN_SIZES)
@@ -63,7 +62,7 @@ static size_t uinthash(size_t x)
 }
 #undef UIHOP
 
-static rh_yesno checkptr(const void *p)
+static yesno checkptr(const void *p)
 {
 	size_t *sp;
 	size_t sz, x, y;
@@ -86,7 +85,7 @@ static rh_yesno checkptr(const void *p)
 	return YES;
 }
 
-void *rh_malloc(size_t n)
+void *xmalloc(size_t n)
 {
 	size_t *r;
 	size_t x, y;
@@ -95,12 +94,15 @@ void *rh_malloc(size_t n)
 	if (n == 0) n++;
 _try:	r = malloc(PROPER_ALIGN+n+sizeof(size_t));
 	if (!r) {
-		if (rh_oom(YES, OOM_MALLOC) == YES) goto _try;
-		else xerror("rh_malloc");
+		if (xmalloc_oom(YES, OOM_MALLOC) == YES) goto _try;
+		else {
+			xmalloc_error(OOM_MALLOC);
+			return NULL;
+		}
 	}
-	else rh_oom(NO, OOM_MALLOC);
+	else xmalloc_oom(NO, OOM_MALLOC);
 
-	rh_memzero(r, PROPER_ALIGN+n+sizeof(size_t));
+	memset(r, 0, PROPER_ALIGN+n+sizeof(size_t));
 	*r = n;
 	*(r+1) = (size_t)MGCNUMBER1;
 	*(r+2) = (size_t)MGCNUMBER2;
@@ -114,43 +116,44 @@ _try:	r = malloc(PROPER_ALIGN+n+sizeof(size_t));
 	return r+ALIGN_SIZES;
 }
 
-#ifdef WITH_TLS
-void *rh_calloc(size_t x, size_t y)
+void *xcalloc(size_t x, size_t y)
 {
-	return rh_malloc(x * y);
+	return xmalloc(x * y);
 }
-#endif
 
-void *rh_realloc(void *p, size_t n)
+void *xrealloc(void *p, size_t n)
 {
 	size_t *r, *t;
 	size_t sz, x, y;
 	char *s;
 
-	if (!p) return rh_malloc(n);
+	if (!p) return xmalloc(n);
 	else if (p && !n) {
-		rh_free(p);
+		xfree(p);
 		return NULL;
 	}
 
-	if (!checkptr(p)) rh_ub(p);
+	if (!checkptr(p)) xmalloc_ub(p);
 
 	r = (size_t *)p-ALIGN_SIZES;
 	sz = *r;
 
 _try:	t = realloc(r, PROPER_ALIGN+n+sizeof(size_t));
 	if (!t) {
-		if (rh_oom(YES, OOM_REALLOC) == YES) goto _try;
-		else xerror("rh_realloc");
+		if (xmalloc_oom(YES, OOM_REALLOC) == YES) goto _try;
+		else {
+			xmalloc_error(OOM_REALLOC);
+			return NULL;
+		}
 	}
 	else {
 		r = t;
-		rh_oom(NO, OOM_REALLOC);
+		xmalloc_oom(NO, OOM_REALLOC);
 	}
 	if (sz < n) {
 		s = (char *)r;
 		s += PROPER_ALIGN+sz;
-		rh_memzero(s, n-sz);
+		memset(s, 0, n-sz);
 	}
 
 	*r = n;
@@ -166,21 +169,21 @@ _try:	t = realloc(r, PROPER_ALIGN+n+sizeof(size_t));
 	return r+ALIGN_SIZES;
 }
 
-void rh_free(void *p)
+void xfree(void *p)
 {
 	size_t *r = (size_t *)p-ALIGN_SIZES;
 
 	if (!p) return;
-	if (!checkptr(p)) rh_ub(p);
-	rh_memzero(p, *r);
+	if (!checkptr(p)) xmalloc_ub(p);
+	memset(p, 0, *r);
 	free(r);
 }
 
-size_t rh_szalloc(const void *p)
+size_t xszalloc(const void *p)
 {
 	size_t *r = (size_t *)p-ALIGN_SIZES;
 
 	if (!p) return 0;
-	if (!checkptr(p)) rh_ub(p);
+	if (!checkptr(p)) xmalloc_ub(p);
 	return *r;
 }

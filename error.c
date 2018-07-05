@@ -30,12 +30,12 @@
 
 static char no_error_str[] = "no error information";
 
-void rh_ub(const void *offender)
+void xmalloc_ub(const void *offender)
 {
 	xexits("UB: %p was corrupted!", offender);
 }
 
-rh_yesno rh_oom(rh_yesno fail, int where)
+int xmalloc_oom(int fail, int where)
 {
 	static unsigned long attempted;
 
@@ -52,6 +52,11 @@ rh_yesno rh_oom(rh_yesno fail, int where)
 		attempted++;
 		return YES;
 	}
+}
+
+void xmalloc_error(int where)
+{
+	xerror(where == OOM_MALLOC ? "rh_malloc" : "rh_realloc");
 }
 
 rh_exit_cb rh_atexit;

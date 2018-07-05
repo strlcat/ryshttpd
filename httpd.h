@@ -65,6 +65,14 @@
 #include <pwd.h>
 #include <grp.h>
 #include <locale.h>
+
+#include "xmalloc.h"
+#define rh_malloc xmalloc
+#define rh_realloc xrealloc
+#define rh_free xfree
+#define rh_calloc xcalloc
+#define rh_szalloc xszalloc
+
 #ifdef WITH_TLS
 #define XMALLOC rh_malloc
 #define XCALLOC rh_calloc
@@ -92,7 +100,6 @@ enum { NO, YES };
 #define RH_ALLOC_SMALL 128 /* small objects preallocation size limit */
 
 #define STAT_ARRAY_SZ(x) (sizeof(x)/sizeof(*x))
-#define DYN_ARRAY_SZ(x) (rh_szalloc(x)/sizeof(*x))
 #define CSTR_SZ(x) (sizeof(x)-1)
 
 #define ADDHALF_TO(x) ((x / 2) * 3)
@@ -264,20 +271,6 @@ void *rh_memdup(const void *p, size_t sz);
 char *rh_strndup(const char *s, size_t max);
 char *rh_strdup(const char *s);
 void *append_data(void *block, const void *data, size_t szdata);
-
-#define OOM_MALLOC 1
-#define OOM_REALLOC 2
-
-void rh_ub(const void *offender);
-rh_yesno rh_oom(rh_yesno fail, int where);
-void *rh_malloc(size_t n);
-#ifdef WITH_TLS
-void *rh_calloc(size_t x, size_t y);
-#endif
-void *rh_realloc(void *p, size_t n);
-void rh_free(void *p);
-#define pfree(p) do { rh_free(p); p = NULL; } while (0)
-size_t rh_szalloc(const void *p);
 
 rh_yesno is_number(const char *s, int sign);
 int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);

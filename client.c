@@ -302,9 +302,12 @@ static void reset_client_state(struct client_state *clstate)
 	if (rh_dir_prepend_path) clstate->prepend_path = rh_strdup(rh_dir_prepend_path);
 }
 
-static rh_yesno match_exec_pattern(const void *rgx, const char *path)
+static rh_yesno match_exec_pattern(const void *rgx, const char *root, const char *path)
 {
-	return regex_exec(rgx, path);
+	if (!strcmp(root, "/")) goto _ret;
+	if (strncmp(path, root, strnlen(root, RH_XSALLOC_MAX)) != 0) return NO;
+	path += strnlen(root, RH_XSALLOC_MAX);
+_ret:	return regex_exec(rgx, path);
 }
 
 static void catch_status_code(struct client_state *clstate, const void *rdata, size_t rsz)
@@ -549,6 +552,7 @@ void run_client(struct client_info *clinfo)
 	reset_client_state(clstate);
 	clstate->clinfo = clinfo;
 	clstate->ipaddr = clinfo->ipaddr;
+	clstate->httproot = rh_strdup(rh_root_dir);
 
 	/* First time handler for read from client: if client is lazy, the timeout will drop him. */
 	set_timeout_alarm(rh_client_request_timeout);
@@ -945,7 +949,7 @@ _badhost:		response_error(clstate, 404);
 
 	/* Pretranslate: determine if it even exists */
 	d = NULL;
-	rh_astrcat(&d, rh_root_dir);
+	rh_astrcat(&d, clstate->httproot);
 	rh_astrcat(&d, "/");
 	rh_astrcat(&d, clstate->path);
 	rh_strlrep(d, rh_szalloc(d), "//", "/");
@@ -970,7 +974,7 @@ _not_found:
 		 * to see htaccess file permissions
 		 */
 		s = dirname(d);
-		if (strncmp(s, rh_root_dir, strnlen(rh_root_dir, RH_XSALLOC_MAX)) != 0) {
+		if (strncmp(s, clstate->httproot, strnlen(clstate->httproot, RH_XSALLOC_MAX)) != 0) {
 			/* Bad. */
 			pfree(d);
 			response_error(clstate, 403);
@@ -978,7 +982,7 @@ _not_found:
 		}
 
 		/* Good, let's try htaccess */
-		err = verify_htaccess(clstate, s, rh_root_dir);
+		err = verify_htaccess(clstate, s, clstate->httproot);
 		pfree(d);
 		if (err == HTA_REWRITE) goto _hta_rewrite;
 		if (err) {
@@ -992,7 +996,7 @@ _not_found:
 		goto _done;
 	}
 	pfree(d);
-	if (strncmp(s, rh_root_dir, strnlen(rh_root_dir, RH_XSALLOC_MAX)) != 0) {
+	if (strncmp(s, clstate->httproot, strnlen(clstate->httproot, RH_XSALLOC_MAX)) != 0) {
 		response_error(clstate, 403); /* yes, stepping outside of root directory */
 		goto _done;
 	}
@@ -1022,7 +1026,7 @@ _not_found:
 		 * for the is_htaccess test below. For example,
 		 * completely hide .htaccess files with rewrite.
 		 */
-		err = verify_htaccess(clstate, clstate->realpath, rh_root_dir);
+		err = verify_htaccess(clstate, clstate->realpath, clstate->httproot);
 		if (err == HTA_REWRITE) goto _hta_rewrite;
 		if (err > 0) {
 			response_error(clstate, err);
@@ -1042,11 +1046,11 @@ _not_found:
 		}
 
 _sendidx:	/* Find out if it is potential CGI executable */
-		if (match_exec_pattern(rh_cgiexecs_rgx, clstate->realpath))
+		if (match_exec_pattern(rh_cgiexecs_rgx, clstate->httproot, clstate->realpath))
 			clstate->cgi_mode = CGI_MODE_REGULAR;
-		else if (match_exec_pattern(rh_nhcgiexecs_rgx, clstate->realpath))
+		else if (match_exec_pattern(rh_nhcgiexecs_rgx, clstate->httproot, clstate->realpath))
 			clstate->cgi_mode = CGI_MODE_NOHEADS;
-		else if (match_exec_pattern(rh_cgiehexecs_rgx, clstate->realpath))
+		else if (match_exec_pattern(rh_cgiehexecs_rgx, clstate->httproot, clstate->realpath))
 			clstate->cgi_mode = CGI_MODE_ENDHEAD;
 
 		/* File is executable - execute it, forward output to client. */
@@ -1141,7 +1145,7 @@ _cgiserver:		tenvp = NULL;
 			if (clstate->prepend_path)
 				cgisetenv(t, "%s=%s", "SERVER_PREPEND_PATH", clstate->prepend_path);
 
-			cgisetenv(t, "%s=%s", "SERVER_ROOT", rh_root_dir);
+			cgisetenv(t, "%s=%s", "SERVER_ROOT", clstate->httproot);
 			if (rh_chroot_dir) cgisetenv(t, "%s=%s", "SERVER_CHROOT", rh_chroot_dir);
 			switch (clinfo->af) {
 				case AF_INET: d = "IPv4"; break;
@@ -1626,7 +1630,7 @@ _no_send:		/*
 		rh_strlrep(s, rh_szalloc(s), "//", "/");
 
 		/* Verify the user has access */
-		err = verify_htaccess(clstate, s, rh_root_dir);
+		err = verify_htaccess(clstate, s, clstate->httproot);
 		pfree(s);
 		if (err == HTA_REWRITE) goto _hta_rewrite;
 		if (err > 0) {

@@ -140,6 +140,11 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	The syntax is same as for "allow".
 "done": stop further parsing htaccess file at this line. May be applied inside
 	"rewrite"/"rematch"/"matchip" rules, see their description below.
+"httproot /path/to/newroot": change virtual HTTP root to arbitrary location pointed to
+	by /path/to/newroot. The location must be accessible within the current rootfs tree,
+	and permissions must allow access to it to the current privileges of ryshttpd process.
+"secure_httproot yes": lock further httproot calls inside, disallowing them to ascend out.
+	Cannot be unset (so values other than "yes" do not work here).
 "return HTTPcode": immediately return an HTTP code.
 	If such code is not supported by ryshttpd (see response_codes.h),
 	then a generic 500 Server Error code will be returned instead.

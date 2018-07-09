@@ -87,12 +87,12 @@ static int htaccess_single(struct client_state *clstate, const char *htadir, con
 {
 	void *cfg;
 	char *ln, *s, *d, *t, *p;
-	size_t lnsz;
+	size_t sz, lnsz;
 	struct netaddr net, addr;
 	struct fmtstr_args *fsa;
 	size_t nr_fsa;
 	struct fmtstr_state fst;
-	rh_yesno denied;
+	rh_yesno denied, sechttproot;
 	int r;
 
 	s = NULL;
@@ -121,7 +121,7 @@ static int htaccess_single(struct client_state *clstate, const char *htadir, con
 	}
 	close(r);
 
-	denied = NO; ln = NULL;
+	denied = sechttproot = NO; ln = NULL;
 	while (1) {
 		s = get_config_line(cfg);
 		if (!s) break;
@@ -183,6 +183,37 @@ _trim:		*d = 0; d++;
 			if (!strcasecmp(d, "yes")) rh_htaccess_regex_no_case = YES;
 			else rh_htaccess_regex_no_case = NO;
 			continue;
+		}
+
+		else if (!strcasecmp(s, "secure_httproot")) {
+			/* cannot be unset */
+			if (!strcasecmp(d, "yes")) sechttproot = YES;
+			continue;
+		}
+
+		else if (!strcasecmp(s, "httproot")) {
+_httproot:		sz = strlen(d)+1;
+			filter_dotdots(d, sz);
+			if (file_or_dir(d) != PATH_IS_DIR) continue;
+			if (is_symlink(d)) continue;
+			if (rh_secure_httproot == YES
+			&& strncmp(d, clstate->httproot, strnlen(clstate->httproot, RH_XSALLOC_MAX)) != 0) continue;
+			if (!strcmp(d, clstate->httproot)) continue;
+
+			pfree(clstate->httproot);
+			clstate->httproot = rh_strdup(d);
+
+			/* clear htaccess state */
+			clstate->was_rewritten = NO;
+			clstate->noindex = NO;
+			if (clstate->hideindex_rgx) {
+				regex_free(clstate->hideindex_rgx);
+				clstate->hideindex_rgx = NULL;
+			}
+			pfree(clstate->prevpath);
+
+			r = HTA_REWRITE;
+			goto _done;
 		}
 
 		else if (!strcasecmp(s, "return")) {
@@ -326,6 +357,14 @@ _do_matchip:		dpath = rh_strdup(t);
 			}
 			else if (!strcmp(dpath, "done")) {
 				goto _xdone;
+			}
+			else if (!strncmp(dpath, "httproot ", CSTR_SZ("httproot "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("httproot ");
+				*(d-1) = 0;
+				goto _httproot;
 			}
 			else if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
 				pfree(ln);
@@ -625,6 +664,14 @@ _addit:					rh_astrcat(&dpath, ss);
 				else if (!strcmp(dpath, "done")) {
 					goto _xdone;
 				}
+				else if (!strncmp(dpath, "httproot ", CSTR_SZ("httproot "))) {
+					pfree(ln);
+					ln = dpath;
+					s = dpath;
+					d = dpath+CSTR_SZ("httproot ");
+					*(d-1) = 0;
+					goto _httproot;
+				}
 				else if (!strncmp(dpath, "return ", CSTR_SZ("return "))) {
 					pfree(ln);
 					ln = dpath;
@@ -776,7 +823,8 @@ _addit:					rh_astrcat(&dpath, ss);
 _xdone:	if (denied == YES) r = 403;
 	else r = 0;
 
-_done:	free_config(cfg);
+_done:	if (sechttproot == YES) rh_secure_httproot = YES;
+	free_config(cfg);
 	pfree(ln);
 	return r;
 }

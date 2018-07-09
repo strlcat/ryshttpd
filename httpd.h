@@ -171,6 +171,7 @@ extern rh_yesno rh_regex_no_case;
 extern rh_yesno rh_htaccess_regex_no_case;
 extern rh_yesno rh_no_dirsort;
 extern rh_yesno rh_try_shell_exec;
+extern rh_yesno rh_secure_httproot;
 extern useconds_t rh_oom_timer;
 extern unsigned long rh_oom_max_attempts;
 extern int rh_on_fs_error;
@@ -328,7 +329,6 @@ void nuke_fmtstr_templates(char *line, size_t szline);
 char *parse_fmtstr(struct fmtstr_state *fst);
 size_t shrink_dynstr(char **s);
 void rh_astrcat(char **d, const char *s);
-void rh_prepend_str(char **d, const char *s);
 int rh_snprintf(char *s, size_t n, const char *fmt, ...);
 int rh_vsnprintf(char *s, size_t n, const char *fmt, va_list ap);
 int rh_vasprintf(char **s, const char *fmt, va_list ap);
@@ -517,6 +517,7 @@ struct client_state {
 	size_t nr_requests; /* No. of requests processed. */
 	rh_yesno is_keepalive; /* do not write log on empty requests */
 	rh_yesno xrealip_authed; /* is client acting as frontend? */
+	char *httproot; /* a copy of rh_root_dir in case if it gets changed from htaccess */
 
 	/* Client time. */
 	time_t request_time; /* time when we taken client request to process. */

@@ -187,23 +187,6 @@ void rh_astrcat(char **d, const char *s)
 	*d = dd;
 }
 
-void rh_prepend_str(char **d, const char *s)
-{
-	char *t, *T;
-
-	if (!s || !d) return;
-	t = rh_strdup(s);
-	if (!*d) {
-		*d = t;
-		return;
-	}
-
-	T = *d;
-	rh_astrcat(&t, T);
-	*d = t;
-	pfree(T);
-}
-
 int rh_snprintf(char *s, size_t n, const char *fmt, ...)
 {
 	int r;

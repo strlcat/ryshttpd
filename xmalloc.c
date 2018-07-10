@@ -138,6 +138,14 @@ void *xrealloc(void *p, size_t n)
 	r = (size_t *)p-ALIGN_SIZES;
 	sz = *r;
 
+	if (sz == n) return p;
+
+	if (sz > n) {
+		s = (char *)r;
+		s += PROPER_ALIGN+n;
+		memset(s, 0, sz-n);
+	}
+
 _try:	t = realloc(r, PROPER_ALIGN+n+sizeof(size_t));
 	if (!t) {
 		if (xmalloc_oom(YES, OOM_REALLOC) == YES) goto _try;

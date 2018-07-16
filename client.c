@@ -744,7 +744,10 @@ _malformed:
 		d++;
 	}
 	clstate->path = rh_strdup(s);
-	if (d) clstate->strargs = rh_strdup(d);
+	if (d) {
+		clstate->strargs = rh_strdup(d);
+		rh_strlrep(clstate->strargs, rh_szalloc(clstate->strargs), "+", " ");
+	}
 	pfree(s);
 
 	/* done with request method line. */

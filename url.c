@@ -35,8 +35,6 @@ void urldecode(char *str, size_t n)
 
 	if (!str || str_empty(str)) return;
 
-	rh_strlrep(str, n, "+", " ");
-
 	s = str;
 	while (1) {
 		d = strchr(s, '%');
@@ -58,8 +56,7 @@ char *urlencode(const char *str)
 	if (!str || str_empty(str)) return rh_strdup("");
 
 	while (*s) {
-		if (*s == ' ') rh_astrcat(&r, "+");
-		else if (!isalnum(*s)
+		if (!isalnum(*s)
 		&& *s != '_' && *s != '-'
 		&& *s != '.' && *s != '~') {
 			rh_snprintf(t, sizeof(t), "%%%02X", *s);

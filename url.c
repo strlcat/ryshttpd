@@ -40,12 +40,19 @@ void urldecode(char *str, size_t n)
 		d = strchr(s, '%');
 		if (!d) break;
 		rh_strlcpy_real(spec, d, sizeof(spec));
+		if (!strcmp(spec, "%25")) { /* skip percents, replace 'em later */
+			s = d+CSTR_SZ("%25");
+			goto _cont;
+		}
 		if (!isxdigit(spec[2])) spec[2] = 0;
-		if (!getxchr(chr, spec+1)) goto _cont;
+		if (!getxchr(chr, spec+1)) {
+			s = d+1;
+			goto _cont;
+		}
 		rh_strlrep(str, n, spec, chr);
-_cont:		s = d+1;
-		if (s-str >= n) break;
+_cont:		if (s-str >= n) break;
 	}
+	rh_strlrep(str, n, "%25", "%");
 }
 
 char *urlencode(const char *str)

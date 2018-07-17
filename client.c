@@ -230,6 +230,7 @@ static void filter_special_htmlchars(char **line)
 	filter_special_htmlchars_sub(line, sz, ">", "&gt;");
 	filter_special_htmlchars_sub(line, sz, "\"", "&quot;");
 	filter_special_htmlchars_sub(line, sz, "'", "&#x27;");
+	filter_special_htmlchars_sub(line, sz, "%", "%25");
 	filter_special_htmlchars_sub(line, sz, "?", "&quest;");
 	filter_special_htmlchars_sub(line, sz, "=", "&equals;");
 

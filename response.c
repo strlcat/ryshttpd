@@ -171,16 +171,26 @@ void response_error(struct client_state *clstate, int status)
 {
 	struct client_info *cli = clstate->clinfo;
 	const struct response_status *rsp;
-	const struct embedded_resource *rsrc;
-	struct embedded_resource *drsrc;
+	const struct embedded_resource *rsrc = NULL;
+	struct embedded_resource *drsrc = NULL;
 	struct fmtstr_args *fsa = NULL;
-	size_t nr_fsa = 0, sz;
+	size_t nr_fsa = 0, sz = 0;
 	struct fmtstr_state fst;
-	char *s, *errdata = NULL;
+	char *s = NULL, *errdata = NULL;
 	void *rspdata = NULL;
 
 	rsp = find_response(status);
 	if (!rsp) rsp = find_response(500);
+
+	/* drop client if 400 or 500 error. */
+	if (status == 400 || status == 500) {
+		clstate->is_keepalive = NO;
+		delete_header(&clstate->sendheaders, "Keep-Alive");
+	}
+
+	/* Do not need the resource and additional data on HEAD request. */
+	if (clstate->method == REQ_METHOD_HEAD) goto _skiperrdata;
+
 	s = NULL;
 	rh_asprintf(&s, "error%d.html", status);
 	rsrc = find_resource(RESTYPE_NAME, s);
@@ -194,12 +204,6 @@ void response_error(struct client_state *clstate, int status)
 		else rsrc = drsrc;
 	}
 	else drsrc = NULL;
-
-	/* drop client if 400 or 500 error. */
-	if (status == 400 || status == 500) {
-		clstate->is_keepalive = NO;
-		delete_header(&clstate->sendheaders, "Keep-Alive");
-	}
 
 	/*
 	 * Parse error body template.
@@ -239,13 +243,14 @@ _again:	rh_memzero(&fst, sizeof(struct fmtstr_state));
 	sz = shrink_dynstr(&errdata);
 	if (sz > 0) sz--;
 
+_skiperrdata:
 	/* Add length indicator */
 	s = NULL;
 	rh_asprintf(&s, "%zu", sz);
 	add_header(&clstate->sendheaders, "Content-Length", s);
 	pfree(s);
 	/* Add error page mime type header */
-	add_header(&clstate->sendheaders, "Content-Type", rsrc->mimetype);
+	if (rsrc) add_header(&clstate->sendheaders, "Content-Type", rsrc->mimetype);
 
 	/* Log response status code */
 	rh_asprintf(&clstate->status, "%u", status);
@@ -261,12 +266,14 @@ _again:	rh_memzero(&fst, sizeof(struct fmtstr_state));
 	/* add final "\r\n" indicating end of head. */
 	rspdata = add_to_response(rspdata, clstate->is_crlf, NULL, 0);
 
+	if (clstate->method == REQ_METHOD_HEAD) goto _send;
+
 	/* add error message page */
 	rspdata = append_data(rspdata, errdata, sz);
 	/* count error message bytes only */
 	clstate->sentbytes += sz;
 
-	/* Send the response */
+_send:	/* Send the response */
 	if (io_send_data(cli, rspdata, rh_szalloc(rspdata), NO, YES) == NOSIZE)
 		io_set_error(clstate, IOS_WRITE_ERROR);
 

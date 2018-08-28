@@ -1,12 +1,12 @@
-ryshttpd -- small, plain, fast embedded http server.
+ryshttpd -- simple filesharing http server.
 
 	"Sometimes you just need a web server. Not an Apache, and not even nginx.
 	A thing which you may easily build for any existing Unix system, just
 	remember some easy cmdline arguments and have it share a directory."
 
-ryshttpd is a little forking Unix HTTP server designed to be:
+ryshttpd is a simple forking Unix HTTP server designed to be:
 - portable, so it does not require any special features from OS kernel,
-- fast, so it serves files as is, but as fast as possible,
+- file oriented, quickly gives out files as soon as possible,
 - small, so it does have minimal dependenices to setup, and not a memory hog,
 - plain, so it is VERY easy to build and configure it.
 
@@ -22,7 +22,7 @@ ryshttpd is considered a modern successor of such small servers
 as mini_httpd and darkhttpd, but with more functionality.
 
 Features:
-- small, fast, lightweight both in binary and memory sizes, self hosted,
+- small, simple, lightweight both in binary and memory sizes, self hosted,
 - single executable: little or no dependencies (only libmagic), no installation needed,
 - works completely without configuration file involved, or any other filesystem entries,
   configured purely by command line arguments,

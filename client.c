@@ -1,5 +1,5 @@
 /*
- * ryshttpd -- small, plain, fast embedded http server.
+ * ryshttpd -- simple filesharing http server.
  *
  * ryshttpd is copyrighted:
  * Copyright (C) 2018 Andrey Rys. All rights reserved.

@@ -289,6 +289,7 @@ static void reset_client_state(struct client_state *clstate)
 
 	clstate->was_rewritten = NO;
 	clstate->noindex = NO;
+	clstate->allow_tar = NO;
 	if (clstate->hideindex_rgx) {
 		regex_free(clstate->hideindex_rgx);
 		clstate->hideindex_rgx = NULL;
@@ -418,7 +419,7 @@ static void destroy_argv(char ***argv)
 }
 
 struct dir_items {
-	char *it_name; /* item file name */
+	char *it_name; /* item file name, or relative path in tar archive */
 	int it_type; /* PATH_IS_FILE or PATH_IS_DIR */
 	rh_fsize it_size; /* item size */
 	mode_t it_mode; /* item Unix chmod */
@@ -517,6 +518,322 @@ static char *rh_which(const char *envpath, const char *name)
 
 	pfree(r);
 	return NULL;
+}
+
+/* TAR stuff */
+struct tar_header {
+	char name[100];
+	char mode[8];
+	char uid[8];
+	char gid[8];
+	char size[12];
+	char mtime[12];
+	char chksum[8];
+	char typeflag;
+	char linkname[100];
+	char magic[8];
+	char uname[32];
+	char gname[32];
+	char devmajor[8];
+	char devminor[8];
+	char prefix[155];
+	char pad[12];
+};
+
+struct tar_fileargs {
+	int fd;
+	struct dir_items *this;
+	struct client_state *clstate;
+	size_t do_pad;
+	rh_yesno last_status;
+};
+
+static size_t do_tar_stream_file_reader(void *ta, void *data, size_t szdata)
+{
+	struct tar_fileargs *uta = ta;
+	return io_read_data(uta->fd, data, szdata, YES, NULL);
+}
+
+static size_t do_tar_stream_file_writer(void *ta, const void *data, size_t szdata)
+{
+	struct tar_fileargs *uta = ta;
+	return io_send_data(uta->clstate->clinfo, data, szdata, YES, NO);
+}
+
+/* should be never invoked. */
+static rh_fsize do_tar_stream_file_seeker(void *clstate, rh_fsize offset)
+{
+	return NOSIZE;
+}
+
+static void do_tar_stream_file(struct tar_fileargs *ta)
+{
+	struct io_stream_args ios_args;
+	size_t t;
+
+	rh_memzero(&ios_args, sizeof(struct io_stream_args));
+
+	ios_args.fn_args = ta;
+	ios_args.rdfn = do_tar_stream_file_reader;
+	ios_args.wrfn = do_tar_stream_file_writer;
+	ios_args.skfn = do_tar_stream_file_seeker;
+
+	ios_args.workbuf = clstate->workbuf;
+	ios_args.wkbufsz = clstate->wkbufsz;
+
+	ios_args.file_size = ta->this->it_size;
+	ios_args.start_from = 0;
+	ios_args.read_to = ta->this->it_size;
+
+	ta->last_status = io_stream_file(&ios_args);
+
+	clstate->iostate = ios_args.status;
+	clstate->ioerror = ios_args.error;
+	clstate->sentbytes += ios_args.nr_written;
+
+	t = ios_args.nr_written % sizeof(struct tar_header);
+	ta->do_pad = (t > 0 ? sizeof(struct tar_header)-t : 0);
+}
+
+static void do_tar_pad(struct tar_fileargs *ta)
+{
+	char pad[sizeof(struct tar_header)];
+
+	rh_memzero(pad, ta->do_pad);
+	response_send_data(clstate, pad, ta->do_pad);
+}
+
+static void do_tar_chksum(struct tar_header *tar)
+{
+	unsigned char *t = (unsigned char *)tar;
+	size_t sum = 0, sz = sizeof(struct tar_header);
+
+	strcpy(tar->magic, "ustar  ");
+	memset(tar->chksum, ' ', sizeof(tar->chksum));
+	do {
+		sum += *t;
+		t++;
+	} while (--sz);
+	rh_snprintf(tar->chksum, sizeof(tar->chksum), "%06o", sum);
+}
+
+static rh_yesno do_tar_longname(const char *path, const char *prependpfx, struct dir_items *di)
+{
+	struct tar_header *tar = (struct tar_header *)((char *)clstate->workbuf + sizeof(struct tar_header));
+	char *t = (char *)tar + sizeof(struct tar_header);
+	size_t sz;
+
+	if (prependpfx && str_empty(prependpfx)) prependpfx = NULL;
+
+	rh_memzero(tar, sizeof(struct tar_header));
+	rh_memzero(t, sizeof(struct tar_header));
+
+	if (!prependpfx) {
+		sz = rh_snprintf_real(t, sizeof(struct tar_header), "%s%s",
+			path, ((di->it_type == PATH_IS_DIR) ? "/" : ""));
+	}
+	else {
+		sz = rh_snprintf_real(t, sizeof(struct tar_header), "%s/%s%s",
+			prependpfx, path, ((di->it_type == PATH_IS_DIR) ? "/" : ""));
+	}
+	if (sz > sizeof(struct tar_header)) return NO;
+
+	strcpy(tar->name, "././@LongLink");
+	strcpy(tar->mode, "0000000");
+	strcpy(tar->uid, "0000000");
+	strcpy(tar->gid, "0000000");
+	strcpy(tar->mtime, "00000000000");
+	rh_snprintf(tar->size, sizeof(tar->size), "%011o", sz);
+	tar->typeflag = 'L';
+	do_tar_chksum(tar);
+	response_send_data(clstate, tar, sizeof(struct tar_header));
+	response_send_data(clstate, t, sizeof(struct tar_header));
+
+	return YES;
+}
+
+static rh_yesno do_tar_header(const char *path, const char *prependpfx, struct dir_items *di)
+{
+	struct tar_header *tar = clstate->workbuf;
+	mode_t mfx;
+	size_t sz;
+
+	if (prependpfx && str_empty(prependpfx)) prependpfx = NULL;
+	if (!strncmp(path, "./", CSTR_SZ("./"))) path += CSTR_SZ("./");
+
+	rh_memzero(tar, sizeof(struct tar_header));
+	if (!prependpfx) sz = rh_strlcpy_real(tar->name, path, sizeof(tar->name));
+	else sz = rh_snprintf_real(tar->name, sizeof(tar->name), "%s/%s", prependpfx, path);
+	mfx = di->it_mode & ~0177000;
+	rh_snprintf(tar->mode, sizeof(tar->mode), "%07o", mfx);
+	strcpy(tar->uid, "0000000");
+	strcpy(tar->gid, "0000000");
+	strcpy(tar->uname, "root");
+	strcpy(tar->gname, "wheel");
+	if (di->it_size <= 0x200000000ULL) {
+		rh_snprintf(tar->size, sizeof(tar->size), "%011o", (size_t)di->it_size);
+	}
+	else {
+		char *p8 = tar->size + sizeof(tar->size);
+		rh_fsize fsz = di->it_size;
+
+		do {
+			*--p8 = (unsigned char)fsz;
+			fsz >>= 8;
+		} while (p8 != tar->size);
+		*p8 |= 0x80;
+	}
+	rh_snprintf(tar->mtime, sizeof(tar->mtime), "%011o", di->it_mtime);
+	if (di->it_type == PATH_IS_DIR) tar->typeflag = '5';
+	else tar->typeflag = '0';
+	if (sz >= (sizeof(tar->name)-1)) {
+		if (do_tar_longname(path, prependpfx, di) != YES) return NO;
+	}
+	else {
+		if (di->it_type == PATH_IS_DIR)
+			if (!tar->name[sizeof(tar->name)-1]) tar->name[sz] = '/';
+	}
+	do_tar_chksum(tar);
+	response_send_data(clstate, tar, sizeof(struct tar_header));
+
+	return YES;
+}
+
+/*
+ * The following implementation of POSIX tar is very simple.
+ * It only reads files and recurses into directories, completely
+ * omitting any special files and not following (and ignoring) symlinks.
+ * The stat information is also somewhere forged.
+ * If file or directory is inaccessible, it is ignored.
+ *
+ * It does NOT handle hardlinks! If you have an http root filled with them,
+ * then sorry - unneeded waste of memory anyway.
+ *
+ * The recursive (and still, memory hungry) nature defaults to that this feature
+ * is not enabled by default and restricted.
+ *
+ * do_tar_* functions do use clstate shared temporary buffer.
+ * The required minimum size is three tar headers in a row (or 1536 bytes).
+ * Please never lower the size of temporary buffer below this number!
+ */
+static rh_yesno do_recursive_tar(const char *dirpath, const char *prependpfx)
+{
+	DIR *dp;
+	struct dirent *de;
+	struct dir_items *di;
+	struct stat stst;
+	size_t sz, x;
+	struct tar_fileargs ta;
+	char *t;
+
+	/* safe to (re)set, because client code will exit or restart */
+	di_sortby = DI_SORTBY_TYPE;
+	di_reverse_sort = NO;
+
+	/* no action if impossible to read */
+	if (lstat(dirpath, &stst) == -1) return NO;
+
+	if (prependpfx && str_empty(prependpfx)) prependpfx = NULL;
+
+	dp = opendir(dirpath);
+	if (!dp) return NO;
+
+	if (strcmp(dirpath, ".") != 0) {
+		struct dir_items dmi;
+
+		rh_memzero(&dmi, sizeof(struct dir_items));
+		dmi.it_type = PATH_IS_DIR;
+		dmi.it_size = (rh_fsize)0;
+		dmi.it_mode = stst.st_mode;
+		dmi.it_mtime = stst.st_mtime;
+		if (do_tar_header(dirpath, prependpfx, &dmi) != YES) goto _closeret;
+	}
+
+	di = NULL;
+
+	/* the code is nearly same as in ordinary dirlisting. */
+	while ((de = readdir(dp))) {
+		if (!strcmp(de->d_name, ".")
+		|| !strcmp(de->d_name, "..")
+		|| strstr(de->d_name, rh_htaccess_name)) continue;
+
+		if (clstate->hideindex_rgx
+		&& regex_exec(clstate->hideindex_rgx, de->d_name) == YES)
+			continue;
+
+		t = rh_strdup(de->d_name);
+		rh_prepend_str(&t, "/"); /* "/" -> "/name" */
+		rh_prepend_str(&t, dirpath); /* "dir/path" -> "dir/path/name" */
+		if (lstat(t, &stst) == -1) {
+			pfree(t);
+			continue;
+		}
+
+		/* Not going to give special files including symlinks. */
+		if (!S_ISREG(stst.st_mode) && !S_ISDIR(stst.st_mode)) {
+			pfree(t);
+			continue;
+		}
+
+		sz = DYN_ARRAY_SZ(di);
+		di = rh_realloc(di, (sz+1) * sizeof(struct dir_items));
+		di[sz].it_name = t;
+
+		if (S_ISDIR(stst.st_mode)) {
+			di[sz].it_type = PATH_IS_DIR;
+			di[sz].it_size = (rh_fsize)0;
+		}
+		else {
+			di[sz].it_type = PATH_IS_FILE;
+			di[sz].it_size = (rh_fsize)stst.st_size;
+		}
+		di[sz].it_mode = stst.st_mode;
+		di[sz].it_mtime = stst.st_mtime;
+	}
+
+	if (di == NULL) goto _closeret;
+
+	sz = DYN_ARRAY_SZ(di);
+	qsort(di, sz, sizeof(struct dir_items), dir_sort_compare);
+
+	rh_memzero(&ta, sizeof(struct tar_fileargs));
+	ta.clstate = clstate;
+	for (x = 0; x < sz; x++) {
+		if (di[x].it_type == PATH_IS_DIR) {
+			do_recursive_tar(di[x].it_name, prependpfx);
+		}
+		else {
+#ifdef O_LARGEFILE
+			ta.fd = open(di[x].it_name, O_RDONLY | O_LARGEFILE);
+#else
+			ta.fd = open(di[x].it_name, O_RDONLY);
+#endif
+			if (ta.fd == -1) continue;
+			ta.this = &di[x];
+
+			if (do_tar_header(di[x].it_name, prependpfx, &di[x]) != YES) {
+				ta.last_status = YES;
+				goto _bad_tar_hdr;
+			}
+			do_tar_stream_file(&ta);
+			do_tar_pad(&ta);
+
+_bad_tar_hdr:		close(ta.fd);
+			ta.fd = -1;
+
+			if (ta.last_status != YES) goto _closeret;
+		}
+	}
+
+	if (di == NULL) {
+_closeret:	free_dir_items(di);
+		closedir(dp);
+		return NO;
+	}
+
+	free_dir_items(di);
+	closedir(dp);
+	return YES;
 }
 
 #define cgisetenv(to, fmt, ss, dd)								\
@@ -1661,13 +1978,6 @@ _no_send:		/*
 			goto _done;
 		}
 
-		/* No index - send directory listing */
-		dp = opendir(clstate->realpath);
-		if (!dp) {
-			response_error(clstate, 403);
-			goto _done;
-		}
-
 		if (stat(clstate->realpath, &stst) == -1) goto _nodlastmod;
 		/* Add directory Last-Modified header */
 		s = getsdate(stst.st_mtime, HTTP_DATE_FMT, YES);
@@ -1679,6 +1989,67 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 		|| !strcmp(clstate->protoversion, "0.9")) {
 			clstate->is_keepalive = NO;
 			delete_header(&clstate->sendheaders, "Keep-Alive");
+		}
+
+		if (clstate->strargs && !strcmp(clstate->strargs, "tar")) {
+			if (chdir(clstate->realpath) == -1) {
+				response_error(clstate, 403);
+				goto _done;
+			}
+
+			/* Well, not permitted anyway. Sorry. */
+			if (clstate->allow_tar != YES) {
+				response_error(clstate, 403);
+				goto _done;
+			}
+
+			add_header(&clstate->sendheaders, "Content-Type", "application/x-tar");
+
+			/*
+			 * It mimics CGI script. The reason for that is that the old
+			 * versions of Wget do not support chunked transfer encoding!
+			 * And there is no any reason to keep connection after such a
+			 * large transfer.
+			 * In future versions however if compression will be added, I am
+			 * going to fix this behavior.
+			 */
+			clstate->is_keepalive = NO;
+			delete_header(&clstate->sendheaders, "Keep-Alive");
+			tell_never_cache(clstate);
+
+			if (!strcmp(clstate->path, "/")) {
+				t = rh_strdup("");
+				add_header(&clstate->sendheaders, "Content-Disposition",
+				"attachment; filename=\"root.tar\"");
+			}
+			else {
+				d = rh_strdup(clstate->realpath);
+				t = rh_strdup(basename(d)); /* t == archive names prefix. */
+				rh_asprintf(&d, "attachment; filename=\"%s.tar\"", t);
+				add_header(&clstate->sendheaders, "Content-Disposition", d);
+				pfree(d);
+			}
+
+			/* It's good going. */
+			response_ok(clstate, 200, YES);
+			if (clstate->method == REQ_METHOD_HEAD) goto _done;
+
+			/* Form the tar archive. */
+			if (do_recursive_tar(".", t) == NO) goto _done;
+			pfree(t);
+
+			/* End the tar archive with two full zero blocks. */
+			rh_memzero(clstate->workbuf, sizeof(struct tar_header)*2);
+			response_send_data(clstate, clstate->workbuf, sizeof(struct tar_header)*2);
+
+			goto _done;
+		}
+
+		/* No index - send directory listing */
+		dp = opendir(clstate->realpath);
+		if (!dp) {
+			response_error(clstate, 403);
+			goto _done;
 		}
 
 		/* Text only listing */

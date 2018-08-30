@@ -187,6 +187,23 @@ void rh_astrcat(char **d, const char *s)
 	*d = dd;
 }
 
+void rh_prepend_str(char **d, const char *s)
+{
+	char *t, *T;
+
+	if (!s || !d) return;
+	t = rh_strdup(s);
+	if (!*d) {
+		*d = t;
+		return;
+	}
+
+	T = *d;
+	rh_astrcat(&t, T);
+	*d = t;
+	pfree(T);
+}
+
 int rh_snprintf(char *s, size_t n, const char *fmt, ...)
 {
 	int r;
@@ -205,6 +222,16 @@ static int rh_vsnprintf_real(char *s, size_t n, const char *fmt, va_list ap)
 	va_copy(t, ap);
 	r = vsnprintf(s, n, fmt, t);
 	va_end(t);
+	return r;
+}
+
+int rh_snprintf_real(char *s, size_t n, const char *fmt, ...)
+{
+	int r;
+	va_list ap;
+	va_start(ap, fmt);
+	r = rh_vsnprintf_real(s, n, fmt, ap);
+	va_end(ap);
 	return r;
 }
 

@@ -206,6 +206,7 @@ _httproot:		sz = strlen(d)+1;
 			/* clear htaccess state */
 			clstate->was_rewritten = NO;
 			clstate->noindex = NO;
+			clstate->allow_tar = NO;
 			if (clstate->hideindex_rgx) {
 				regex_free(clstate->hideindex_rgx);
 				clstate->hideindex_rgx = NULL;
@@ -273,6 +274,14 @@ _allow:			if (!strcasecmp(d, "all")) {
 _noindex:		if (!strcasecmp(d, "yes") && !strcmp(htadir, path))
 				clstate->noindex = YES;
 			else clstate->noindex = NO;
+			continue;
+		}
+
+		else if (!strcasecmp(s, "tar")) {
+_allow_tar:		sz = strlen(htadir);
+			if (!strcasecmp(d, "yes") && !strncmp(htadir, path, sz))
+				clstate->allow_tar = YES;
+			else clstate->allow_tar = NO;
 			continue;
 		}
 
@@ -421,6 +430,14 @@ _do_matchip:		dpath = rh_strdup(t);
 				d = dpath+CSTR_SZ("noindex ");
 				*(d-1) = 0;
 				goto _noindex;
+			}
+			else if (!strncmp(dpath, "tar ", CSTR_SZ("tar "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("tar ");
+				*(d-1) = 0;
+				goto _allow_tar;
 			}
 			else if (!strncmp(dpath, "hideindex ", CSTR_SZ("hideindex "))) {
 				pfree(ln);
@@ -727,6 +744,14 @@ _addit:					rh_astrcat(&dpath, ss);
 					d = dpath+CSTR_SZ("noindex ");
 					*(d-1) = 0;
 					goto _noindex;
+				}
+				else if (!strncmp(dpath, "tar ", CSTR_SZ("tar "))) {
+					pfree(ln);
+					ln = dpath;
+					s = dpath;
+					d = dpath+CSTR_SZ("tar ");
+					*(d-1) = 0;
+					goto _allow_tar;
 				}
 				else if (!strncmp(dpath, "hideindex ", CSTR_SZ("hideindex "))) {
 					pfree(ln);

@@ -167,6 +167,11 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	set access mode so that http server cannot get file list for it.
 	This is just another way to disable directory indexing.
 	Note that this directive is NOT recursive: subdirectories will be indexed.
+"tar yes": allow to download directory as a whole TAR archive.
+	By default, ryshttpd does not allow this because code which emits tar archives eats
+	some more memory than the usual, and it's currently recursive (as busybox tar).
+	This is embedded feature. It does not require external tools.
+	Please see more info in "DIRECTORY DOWNLOADING" section of this document.
 "regex_no_case yes": turn off regex sensitivity, so that you'll able to match both
 	"Apple" and "apple" with the same "/(apple)(|/.*)" regex pattern.
 	Note that if you will give the same command with opposite direction, then
@@ -348,6 +353,27 @@ was called from (hence, $PWD). The following parameters it understands:
 "allowed_filenames regex": an exclusion to forbidden_filenames parameter. You may deny all
 	files with forbidden_filenames and permit a subset of them here.
 	It's not effective without forbidden_filenames previously set!
+
+DIRECTORY DOWNLOADING
+
+ryshttpd supports downloading the directories as a single file (currently, a POSIX TAR archive).
+You can trigger such a download by adding a "?tar" single argument to a URL query string.
+Note that no other arguments are listened to, and feature must be enabled from .htaccess file
+with a "tar yes" string (you can use rewrite/matchip rules together too).
+
+What is supported and what is not:
+- Long file/directory names are SUPPORTED,
+- Unicode or other arbitrary encodings are SUPPORTED,
+- Hardlinks are NOT SUPPORTED. There is a much memory hog to collect all of them and compare,
+- Files bigger than 4/8G are SUPPORTED natively by ryshttpd, but somewhat is broken with
+  busybox tar, which is buggy about base256 file size field encoding,
+- Archive items sorting currently NOT supported, but it could be easily implemented,
+- Keep-Alive requests to tar archives are NOT supported. Built-in tar archiver works just like an
+  ordinary CGI script, and (currently) should be treated as such,
+- Owner and group info is currently forged, as well as file and directory modes,
+- No support to store items others than directory, file (regular) and long filename,
+- Compatible with GNU tar, busybox tar and bsdtar/libarchive,
+- By default it is disabled at runtime and must be enabled from .htaccess file.
 
 PORTABILITY
 

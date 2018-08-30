@@ -329,7 +329,9 @@ void nuke_fmtstr_templates(char *line, size_t szline);
 char *parse_fmtstr(struct fmtstr_state *fst);
 size_t shrink_dynstr(char **s);
 void rh_astrcat(char **d, const char *s);
+void rh_prepend_str(char **d, const char *s);
 int rh_snprintf(char *s, size_t n, const char *fmt, ...);
+int rh_snprintf_real(char *s, size_t n, const char *fmt, ...);
 int rh_vsnprintf(char *s, size_t n, const char *fmt, va_list ap);
 int rh_vasprintf(char **s, const char *fmt, va_list ap);
 int rh_asprintf(char **s, const char *fmt, ...);
@@ -559,6 +561,7 @@ struct client_state {
 	/* .htaccess related items */
 	rh_yesno was_rewritten; /* single rewrite, without recursion, was matched before */
 	rh_yesno noindex; /* htaccess forbids to index this directory */
+	rh_yesno allow_tar; /* allow to take a whole tar archive of this directory */
 	void *hideindex_rgx; /* htaccess "hideindex" regex matching data */
 	char *prevpath; /* saved previous path in case of directory listing */
 

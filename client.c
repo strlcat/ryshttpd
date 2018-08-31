@@ -623,8 +623,6 @@ static rh_yesno do_tar_longname(const char *path, const char *prependpfx, struct
 	char *t = (char *)tar + sizeof(struct tar_header);
 	size_t sz;
 
-	if (prependpfx && str_empty(prependpfx)) prependpfx = NULL;
-
 	rh_memzero(tar, sizeof(struct tar_header));
 	rh_memzero(t, sizeof(struct tar_header));
 
@@ -658,7 +656,6 @@ static rh_yesno do_tar_header(const char *path, const char *prependpfx, struct d
 	mode_t mfx;
 	size_t sz;
 
-	if (prependpfx && str_empty(prependpfx)) prependpfx = NULL;
 	if (!strncmp(path, "./", CSTR_SZ("./"))) path += CSTR_SZ("./");
 
 	rh_memzero(tar, sizeof(struct tar_header));
@@ -699,6 +696,10 @@ static rh_yesno do_tar_header(const char *path, const char *prependpfx, struct d
 	return YES;
 }
 
+#define DO_TAR_YES 0
+#define DO_TAR_NO 1
+#define DO_TAR_ERR -1
+
 /*
  * The following implementation of POSIX tar is very simple.
  * It only reads files and recurses into directories, completely
@@ -716,7 +717,7 @@ static rh_yesno do_tar_header(const char *path, const char *prependpfx, struct d
  * The required minimum size is three tar headers in a row (or 1536 bytes).
  * Please never lower the size of temporary buffer below this number!
  */
-static rh_yesno do_recursive_tar(const char *dirpath, const char *prependpfx)
+static int do_recursive_tar(const char *dirpath, const char *prependpfx)
 {
 	DIR *dp;
 	struct dirent *de;
@@ -725,18 +726,17 @@ static rh_yesno do_recursive_tar(const char *dirpath, const char *prependpfx)
 	size_t sz, x;
 	struct tar_fileargs ta;
 	char *t;
+	int r = DO_TAR_NO;
 
 	/* safe to (re)set, because client code will exit or restart */
 	di_sortby = DI_SORTBY_TYPE;
 	di_reverse_sort = NO;
 
 	/* no action if impossible to read */
-	if (lstat(dirpath, &stst) == -1) return NO;
-
-	if (prependpfx && str_empty(prependpfx)) prependpfx = NULL;
+	if (lstat(dirpath, &stst) == -1) return DO_TAR_NO;
 
 	dp = opendir(dirpath);
-	if (!dp) return NO;
+	if (!dp) return DO_TAR_NO;
 
 	if (strcmp(dirpath, ".") != 0) {
 		struct dir_items dmi;
@@ -791,7 +791,11 @@ static rh_yesno do_recursive_tar(const char *dirpath, const char *prependpfx)
 		di[sz].it_mtime = stst.st_mtime;
 	}
 
-	if (di == NULL) goto _closeret;
+	if (di == NULL) {
+		if (!strcmp(dirpath, ".")) r = DO_TAR_ERR;
+		else r = DO_TAR_NO;
+		goto _closeret;
+	}
 
 	sz = DYN_ARRAY_SZ(di);
 	qsort(di, sz, sizeof(struct dir_items), dir_sort_compare);
@@ -800,7 +804,10 @@ static rh_yesno do_recursive_tar(const char *dirpath, const char *prependpfx)
 	ta.clstate = clstate;
 	for (x = 0; x < sz; x++) {
 		if (di[x].it_type == PATH_IS_DIR) {
-			do_recursive_tar(di[x].it_name, prependpfx);
+			if (do_recursive_tar(di[x].it_name, prependpfx) == DO_TAR_ERR) {
+				r = DO_TAR_ERR;
+				goto _closeret;
+			}
 		}
 		else {
 #ifdef O_LARGEFILE
@@ -821,19 +828,19 @@ static rh_yesno do_recursive_tar(const char *dirpath, const char *prependpfx)
 _bad_tar_hdr:		close(ta.fd);
 			ta.fd = -1;
 
-			if (ta.last_status != YES) goto _closeret;
+			if (ta.last_status != YES) {
+				r = DO_TAR_ERR;
+				goto _closeret;
+			}
 		}
 	}
 
-	if (di == NULL) {
-_closeret:	free_dir_items(di);
-		closedir(dp);
-		return NO;
-	}
+	r = DO_TAR_YES;
 
+_closeret:
 	free_dir_items(di);
 	closedir(dp);
-	return YES;
+	return r;
 }
 
 #define cgisetenv(to, fmt, ss, dd)								\
@@ -2018,7 +2025,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			tell_never_cache(clstate);
 
 			if (!strcmp(clstate->path, "/")) {
-				t = rh_strdup("");
+				t = NULL;
 				add_header(&clstate->sendheaders, "Content-Disposition",
 				"attachment; filename=\"root.tar\"");
 			}
@@ -2035,7 +2042,10 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			if (clstate->method == REQ_METHOD_HEAD) goto _done;
 
 			/* Form the tar archive. */
-			if (do_recursive_tar(".", t) == NO) goto _done;
+			if (do_recursive_tar(".", t) == DO_TAR_ERR) {
+				pfree(t);
+				goto _done;
+			}
 			pfree(t);
 
 			/* End the tar archive with two full zero blocks. */

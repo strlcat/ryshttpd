@@ -89,6 +89,12 @@
 #define TLSE_H
 #endif
 
+#ifdef FNMATCH_CASE_INSENSITIVE
+#define _GNU_SOURCE
+#endif
+#include <fnmatch.h>
+#undef _GNU_SOURCE
+
 enum { NO, YES };
 
 #define NOSIZE  ((size_t)-1) /* NOt a SIZE */
@@ -358,6 +364,8 @@ rh_yesno regex_is_error(const void *regex);
 char *regex_error(const void *regex);
 void regex_xexits(const void *regex);
 void regex_free(void *regex);
+
+rh_yesno rh_fnmatch(const char *pattern, const char *string, rh_yesno nocase);
 
 rh_yesno getsdate_r(time_t t, const char *fmt, rh_yesno gmt, char *str, size_t szstr);
 char *getsdate(time_t t, const char *fmt, rh_yesno gmt);

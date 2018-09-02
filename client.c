@@ -717,7 +717,8 @@ static rh_yesno do_tar_header(const char *path, const char *prependpfx, struct d
  * The required minimum size is three tar headers in a row (or 1536 bytes).
  * Please never lower the size of temporary buffer below this number!
  */
-static int do_recursive_tar(const char *dirpath, const char *prependpfx)
+static int do_recursive_tar(const char *dirpath, const char *prependpfx,
+	const char *tarincl, const char *tarexcl, rh_yesno filt_nocase)
 {
 	DIR *dp;
 	struct dirent *de;
@@ -765,15 +766,18 @@ static int do_recursive_tar(const char *dirpath, const char *prependpfx)
 		rh_prepend_str(&t, "/"); /* "/" -> "/name" */
 		rh_prepend_str(&t, dirpath); /* "dir/path" -> "dir/path/name" */
 		if (lstat(t, &stst) == -1) {
-			pfree(t);
+_next:			pfree(t);
 			continue;
 		}
 
 		/* Not going to give special files including symlinks. */
-		if (!S_ISREG(stst.st_mode) && !S_ISDIR(stst.st_mode)) {
-			pfree(t);
-			continue;
-		}
+		if (!S_ISREG(stst.st_mode) && !S_ISDIR(stst.st_mode)) goto _next;
+
+		/* Skip the files not accepted by include filter set by user. */
+		if (tarincl && rh_fnmatch(tarincl, t, filt_nocase) != YES) goto _next;
+
+		/* Reverse of above. */
+		if (tarexcl && rh_fnmatch(tarexcl, t, filt_nocase) == YES) goto _next;
 
 		sz = DYN_ARRAY_SZ(di);
 		di = rh_realloc(di, (sz+1) * sizeof(struct dir_items));
@@ -804,7 +808,7 @@ static int do_recursive_tar(const char *dirpath, const char *prependpfx)
 	ta.clstate = clstate;
 	for (x = 0; x < sz; x++) {
 		if (di[x].it_type == PATH_IS_DIR) {
-			if (do_recursive_tar(di[x].it_name, prependpfx) == DO_TAR_ERR) {
+			if (do_recursive_tar(di[x].it_name, prependpfx, tarincl, tarexcl, filt_nocase) == DO_TAR_ERR) {
 				r = DO_TAR_ERR;
 				goto _closeret;
 			}
@@ -1998,7 +2002,11 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			delete_header(&clstate->sendheaders, "Keep-Alive");
 		}
 
-		if (clstate->strargs && !strcmp(clstate->strargs, "tar")) {
+		s = client_arg("tar");
+		if (s && !(!strcmp(s, "0"))) {
+			char *tarincl, *tarexcl;
+			rh_yesno filt_nocase;
+
 			if (chdir(clstate->realpath) == -1) {
 				response_error(clstate, 403);
 				goto _done;
@@ -2041,8 +2049,15 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			response_ok(clstate, 200, YES);
 			if (clstate->method == REQ_METHOD_HEAD) goto _done;
 
+			/* Get name pattern to filter the filenames by. */
+			tarincl = client_arg("tarincl");
+			tarexcl = client_arg("tarexcl");
+			s = client_arg("nocase");
+			if (s && !(!strcmp(s, "0"))) filt_nocase = YES;
+			else filt_nocase = NO;
+
 			/* Form the tar archive. */
-			if (do_recursive_tar(".", t) == DO_TAR_ERR) {
+			if (do_recursive_tar(".", t, tarincl, tarexcl, filt_nocase) == DO_TAR_ERR) {
 				pfree(t);
 				goto _done;
 			}

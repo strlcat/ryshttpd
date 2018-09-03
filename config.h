@@ -12,9 +12,6 @@
 /* Use TLS with embedded TLSE. This option blows binary size a bit. */
 /* #define WITH_TLS */
 
-/* Comment this if your platform does not provide case insensitive fnmatch. */
-#define FNMATCH_CASE_INSENSITIVE
-
 /* default listening port (both IPv4 and IPv6) */
 #define RH_DEFAULT_PORT "8079"
 #ifdef WITH_TLS

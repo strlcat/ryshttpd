@@ -30,9 +30,5 @@
 
 rh_yesno rh_fnmatch(const char *pattern, const char *string, rh_yesno nocase)
 {
-#ifdef FNMATCH_CASE_INSENSITIVE
-	return fnmatch(pattern, string, nocase == YES ? FNM_CASEFOLD : 0) == 0 ? YES : NO;
-#else
-	return fnmatch(pattern, string, 0) == 0 ? YES : NO;
-#endif
+	return fnmatch(pattern, string, (nocase == YES) ? FNM_CASEFOLD : 0) == 0 ? YES : NO;
 }

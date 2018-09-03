@@ -62,6 +62,7 @@
 #include <limits.h>
 #include <libgen.h>
 #include <regex.h>
+#include <fnmatch.h>
 #include <pwd.h>
 #include <grp.h>
 #include <locale.h>
@@ -89,11 +90,9 @@
 #define TLSE_H
 #endif
 
-#ifdef FNMATCH_CASE_INSENSITIVE
-#define _GNU_SOURCE
+#ifndef FNM_CASEFOLD
+#define FNM_CASEFOLD 0
 #endif
-#include <fnmatch.h>
-#undef _GNU_SOURCE
 
 enum { NO, YES };
 

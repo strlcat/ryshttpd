@@ -177,6 +177,7 @@ extern rh_yesno rh_htaccess_regex_no_case;
 extern rh_yesno rh_no_dirsort;
 extern rh_yesno rh_try_shell_exec;
 extern rh_yesno rh_secure_httproot;
+extern rh_yesno rh_allow_tar;
 extern useconds_t rh_oom_timer;
 extern unsigned long rh_oom_max_attempts;
 extern int rh_on_fs_error;

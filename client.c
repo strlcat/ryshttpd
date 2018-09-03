@@ -2013,7 +2013,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			}
 
 			/* Well, not permitted anyway. Sorry. */
-			if (clstate->allow_tar != YES) {
+			if (clstate->allow_tar != YES && rh_allow_tar != YES) {
 				response_error(clstate, 403);
 				goto _done;
 			}
@@ -2327,8 +2327,8 @@ _failed_chdir:		if (do_text == YES) {
 							"<tr>"
 							"<td id=\"name\"><b><a href=\"%s%s%s\">%s</a></b></td>"
 							"<td>%llu\t(%s)</td><td>%s</td><td>%s</td><td>%s</td>"
-							"<td><a href=\"%s%s%s?dl=1\" title=\"Download %s\"><img src=\"%s/_rsrc/download.png\" alt=\"Download %s\"></a></td>"
-							"<td><a href=\"%s%s%s?vi=1\" title=\"View %s\"><img src=\"%s/_rsrc/view.png\" alt=\"View %s\"></a></td>"
+							"<td><a href=\"%s%s%s?dl=1\" title=\"Download %s\"><img src=\"%s/_rsrc/download.png\" alt=\"Download %s\" border=0></a></td>"
+							"<td><a href=\"%s%s%s?vi=1\" title=\"View %s\"><img src=\"%s/_rsrc/view.png\" alt=\"View %s\" border=0></a></td>"
 							"</tr>\n",
 							ppath(clstate->prepend_path), dpath, dname, dname,
 							di[x].it_size, fsize, uname, gname, mtime,
@@ -2353,15 +2353,18 @@ _failed_chdir:		if (do_text == YES) {
 			pfree(entline);
 		}
 
-		free_dir_items(di);
-
 _no_dir_items:
 		if (do_text == NO) {
+			s = d = NULL;
+
+			if (di && (clstate->allow_tar == YES || rh_allow_tar == YES))
+				rh_asprintf(&s, "\n<small><i><a href=\"%s%s?tar=1\">Download this directory as tar archive</a></i></small><br>", ppath(clstate->prepend_path), dpath);
+
 			dname = rh_strdup(rh_ident);
 			filter_special_htmlchars(&dname);
 
-			d = NULL;
-			sz = rh_asprintf(&d, "</table>\n<hr>\n<i><b>%s</b></i>\n", dname);
+			sz = rh_asprintf(&d, "</table>\n<hr>%s\n<i><b>%s</b></i>\n", s ? s : "", dname);
+			pfree(s);
 			response_chunk_length(clstate, sz);
 			response_send_data(clstate, d, sz);
 			response_chunk_end(clstate);
@@ -2378,6 +2381,7 @@ _no_dir_items:
 
 		response_chunk_length(clstate, 0);
 		response_chunk_end(clstate);
+		free_dir_items(di);
 _no_list:	closedir(dp);
 	}
 

@@ -88,6 +88,7 @@ rh_yesno rh_htaccess_regex_no_case;
 rh_yesno rh_no_dirsort;
 rh_yesno rh_try_shell_exec;
 rh_yesno rh_secure_httproot;
+rh_yesno rh_allow_tar;
 useconds_t rh_oom_timer;
 unsigned long rh_oom_max_attempts;
 int rh_on_fs_error;
@@ -426,6 +427,7 @@ int main(int argc, char **argv)
 					else if (!strcmp(s, "no_dirsort")) FLIP_YESNO(rh_no_dirsort);
 					else if (!strcmp(s, "try_shell_exec")) FLIP_YESNO(rh_try_shell_exec);
 					else if (!strcmp(s, "secure_httproot")) FLIP_YESNO(rh_secure_httproot);
+					else if (!strcmp(s, "allow_tar")) FLIP_YESNO(rh_allow_tar);
 					else if (!strcmp(s, "rdwr_bufsize")) {
 						rh_rdwr_bufsize = rh_str_size(p, &stoi);
 						if (!str_empty(stoi))

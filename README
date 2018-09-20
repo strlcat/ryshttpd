@@ -70,8 +70,7 @@ Security:
   other than logging pipe and SIGCHLD handling and pid resolving function,
 
 Standards:
-- supports HTTP 0.9/1.0/1.1 (0.9 is implemented differently: it returns full response headers too,
-  but no browsers today use it other than humans in tests, so it even easier to debug things),
+- conforms to HTTP 0.9/1.0/1.1 specs.
 - currently supports only HTTP GET, HEAD and POST (for CGI) requests,
 - POSIX.1-2001, C99 conformant, gcc 4.2.1 compatible, no special apis or syscalls used,
 - POSIX.1-2001 extended regex matching engine,

@@ -57,7 +57,7 @@ static size_t read_raw_request(
 	char **tail, size_t *sztail)
 {
 	size_t x, y, z;
-	char *pblk, *s;
+	char *pblk, *s, *d;
 
 	if (!to || tol < 1) return NOSIZE;
 	rh_memzero(to, tol);
@@ -118,6 +118,34 @@ static size_t read_raw_request(
 				*tail = NULL;
 				*sztail = s-to;
 			}
+			return s-to;
+		}
+
+		/* Try to verify a single HTTP/0.9 request line */
+		y = CSTR_SZ("\r\n");
+		s = strstr(to, "\r\n");
+		if (!s) {
+			y = CSTR_SZ("\n");
+			s = strstr(to, "\n");
+		}
+		if (s && (to+x-y) == s) {
+			d = strchr(to, ' ');
+			if (!d) continue;
+			d++;
+			if (strchr(d, ' ')) continue;
+
+			if (!verify_ascii(to, s-to)) continue;
+
+			if (y == CSTR_SZ("\r\n")) *crlf = YES;
+			else *crlf = NO;
+
+			rh_memzero(s, y);
+			memcpy(s, "\n", CSTR_SZ("\n"));
+
+			s += CSTR_SZ("\n");
+			/* No POST is allowed with HTTP/0.9, so not preserving tail. */
+			*tail = NULL;
+			*sztail = s-to;
 			return s-to;
 		}
 	}
@@ -1003,6 +1031,7 @@ _malformed:
 
 	d = strchr(s, ' ');
 	if (!d) {
+		clstate->protoversion = rh_strdup("0.9");
 		response_error(clstate, 400); /* nonsense from client */
 		goto _done;
 	}
@@ -1027,6 +1056,11 @@ _malformed:
 	d = strstr(s, "HTTP/");
 	if (!d) {
 		clstate->protoversion = rh_strdup("0.9"); /* simply "GET /path", this is 0.9. */
+		/* Only GET in HTTP/0.9! */
+		if (clstate->method != REQ_METHOD_GET) {
+			response_error(clstate, 400);
+			goto _done;
+		}
 	}
 	else {
 		if (d-s < 2) { /* at least needs to be "/ HTTP/1.0" */

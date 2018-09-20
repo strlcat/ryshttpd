@@ -189,7 +189,10 @@ void response_error(struct client_state *clstate, int status)
 	}
 
 	/* Do not need the resource and additional data on HEAD request. */
-	if (clstate->method == REQ_METHOD_HEAD) goto _skiperrdata;
+	if (clstate->method == REQ_METHOD_HEAD) {
+		if (strcmp(clstate->protoversion, "0.9") != 0)
+			goto _skiperrdata;
+	}
 
 	s = NULL;
 	rh_asprintf(&s, "error%d.html", status);
@@ -244,6 +247,9 @@ _again:	rh_memzero(&fst, sizeof(struct fmtstr_state));
 	if (sz > 0) sz--;
 
 _skiperrdata:
+	/* No headers in HTTP/0.9 */
+	if (!strcmp(clstate->protoversion, "0.9")) goto _noheaders09;
+
 	/* Add length indicator */
 	s = NULL;
 	rh_asprintf(&s, "%zu", sz);
@@ -268,6 +274,7 @@ _skiperrdata:
 
 	if (clstate->method == REQ_METHOD_HEAD) goto _send;
 
+_noheaders09:
 	/* add error message page */
 	rspdata = append_data(rspdata, errdata, sz);
 	/* count error message bytes only */
@@ -296,6 +303,9 @@ void response_ok(struct client_state *clstate, int status, rh_yesno end_head)
 
 	/* Log response status code */
 	rh_asprintf(&clstate->status, "%u", status);
+
+	/* No headers in HTTP/0.9 */
+	if (!strcmp(clstate->protoversion, "0.9")) return;
 
 	/* add successive status line */
 	rspdata = add_status_line(rspdata, clstate, rsp);

@@ -1745,6 +1745,7 @@ _out:			destroy_argv(&tenvp);
 		/* send plain file or it's part */
 		else {
 			struct stat stst;
+			rh_yesno part200 = NO;
 
 			/* POST is not permitted for plain files */
 			if (clstate->method > REQ_METHOD_HEAD) {
@@ -1838,7 +1839,10 @@ _out:			destroy_argv(&tenvp);
 			s = client_header("Range");
 			if (!s) {
 				s = client_arg("range"); /* maybe "?range=" was passed? */
-				if (s && !str_empty(s)) goto _rangeparser;
+				if (s && !str_empty(s)) {
+					part200 = YES;
+					goto _rangeparser;
+				}
 			}
 			if (s && !str_empty(s)) {
 				char *stoi;
@@ -1915,15 +1919,17 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 				}
 
 				s = NULL;
-				rh_asprintf(&s, "bytes %llu-%llu/%llu",
-					clstate->range_start,
-					clstate->range_end > 0 ? clstate->range_end-1 : 0,
-					clstate->filesize);
-				add_header(&clstate->sendheaders, "Content-Range", s);
+				if (part200 == NO) {
+					rh_asprintf(&s, "bytes %llu-%llu/%llu",
+						clstate->range_start,
+						clstate->range_end > 0 ? clstate->range_end-1 : 0,
+						clstate->filesize);
+					add_header(&clstate->sendheaders, "Content-Range", s);
+				}
 				rh_asprintf(&s, "%llu", clstate->range_end-clstate->range_start);
 				add_header(&clstate->sendheaders, "Content-Length", s);
 				pfree(s);
-				response_ok(clstate, 206, YES);
+				response_ok(clstate, part200 == YES ? 200 : 206, YES);
 			}
 			else {
 				s = NULL;

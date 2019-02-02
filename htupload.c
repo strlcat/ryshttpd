@@ -346,12 +346,12 @@ _trim:		*d = 0; d++;
 	}
 
 	if (forbidden_filenames) {
-		forbidden_filenames_rgx = regex_compile(forbidden_filenames, YES, NO);
+		forbidden_filenames_rgx = regex_compile(forbidden_filenames, YES, NO, NO);
 		if (regex_is_error(forbidden_filenames_rgx))
 			regex_xexits(forbidden_filenames_rgx);
 	}
 	if (allowed_filenames) {
-		allowed_filenames_rgx = regex_compile(allowed_filenames, YES, NO);
+		allowed_filenames_rgx = regex_compile(allowed_filenames, YES, NO, NO);
 		if (regex_is_error(allowed_filenames_rgx))
 			regex_xexits(allowed_filenames_rgx);
 	}

@@ -270,6 +270,22 @@ static const char *ppath(const char *ppath)
 	return ppath ? ppath : "";
 }
 
+/* strcasestr is so GNUish I cannot use it everywhere. */
+static rh_yesno match_client_useragent(const char *agent, const char *agtpat)
+{
+	void *rgx;
+	rh_yesno r = NO;
+
+	rgx = regex_compile(agtpat, YES, NO, YES);
+	if (regex_is_error(rgx)) {
+		regex_free(rgx);
+		return NO;
+	}
+	if (regex_exec(rgx, agent)) r = YES;
+	regex_free(rgx);
+	return r;
+}
+
 static void reset_client_state(struct client_state *clstate)
 {
 	size_t sz, x;
@@ -2132,7 +2148,9 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			if (no_dl_hints == NO) {
 				s = client_header("User-Agent");
 				/* Make Wget life easier */
-				if (s && (strstr(s, "Wget") || strstr(s, "wget")))
+				if (s
+				&& (match_client_useragent(s, "Wget")
+				|| match_client_useragent(s, "lftp")))
 					no_dl_hints = YES;
 			}
 		}

@@ -521,7 +521,7 @@ int main(int argc, char **argv)
 	if (rh_timefmt) parse_escapes(rh_timefmt, rh_szalloc(rh_timefmt));
 
 	if (rh_hostnames) {
-		rh_hostnames_rgx = regex_compile(rh_hostnames, rh_regex_no_case, NO);
+		rh_hostnames_rgx = regex_compile(rh_hostnames, rh_regex_no_case, NO, NO);
 		if (regex_is_error(rh_hostnames_rgx))
 			regex_xexits(rh_hostnames_rgx);
 	}
@@ -540,19 +540,19 @@ int main(int argc, char **argv)
 	init_mime_regex();
 #endif
 
-	rh_indexes_rgx = regex_compile(rh_indexes_s, rh_regex_no_case, NO);
+	rh_indexes_rgx = regex_compile(rh_indexes_s, rh_regex_no_case, NO, NO);
 	if (regex_is_error(rh_indexes_rgx))
 		regex_xexits(rh_indexes_rgx);
 
-	rh_cgiexecs_rgx = regex_compile(rh_cgi_execs, rh_regex_no_case, NO);
+	rh_cgiexecs_rgx = regex_compile(rh_cgi_execs, rh_regex_no_case, NO, NO);
 	if (regex_is_error(rh_cgiexecs_rgx))
 		regex_xexits(rh_cgiexecs_rgx);
 
-	rh_nhcgiexecs_rgx = regex_compile(rh_nhcgi_execs, rh_regex_no_case, NO);
+	rh_nhcgiexecs_rgx = regex_compile(rh_nhcgi_execs, rh_regex_no_case, NO, NO);
 	if (regex_is_error(rh_nhcgiexecs_rgx))
 		regex_xexits(rh_nhcgiexecs_rgx);
 
-	rh_cgiehexecs_rgx = regex_compile(rh_cgieh_execs, rh_regex_no_case, NO);
+	rh_cgiehexecs_rgx = regex_compile(rh_cgieh_execs, rh_regex_no_case, NO, NO);
 	if (regex_is_error(rh_cgiehexecs_rgx))
 		regex_xexits(rh_cgiehexecs_rgx);
 

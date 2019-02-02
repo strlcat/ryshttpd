@@ -368,7 +368,7 @@ void free_config(void *config);
 
 #define RH_REGEX_MAX_GROUPS 32
 
-void *regex_compile(const char *pattern, rh_yesno nocase, rh_yesno pmatch);
+void *regex_compile(const char *pattern, rh_yesno nocase, rh_yesno pmatch, rh_yesno nofixup);
 rh_yesno regex_exec(const void *regex, const char *string);
 char *regex_get_pattern(const void *regex);
 char *regex_get_match(const void *regex, const char *string, size_t idx);

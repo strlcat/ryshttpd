@@ -67,7 +67,7 @@ struct regex_storage {
 	char *error; /* output error string, which regerror returned */
 };
 
-void *regex_compile(const char *pattern, rh_yesno nocase, rh_yesno pmatch)
+void *regex_compile(const char *pattern, rh_yesno nocase, rh_yesno pmatch, rh_yesno nofixup)
 {
 	struct regex_storage *rgx;
 	int status;
@@ -75,7 +75,7 @@ void *regex_compile(const char *pattern, rh_yesno nocase, rh_yesno pmatch)
 	rgx = rh_malloc(sizeof(struct regex_storage));
 
 	rgx->spattern = rh_strndup(pattern, RH_ALLOC_MAX * 2);
-	fixup_regex_pattern(&rgx->spattern);
+	if (nofixup == NO) fixup_regex_pattern(&rgx->spattern);
 
 	if (pmatch) rgx->pmatch = rh_malloc(sizeof(regmatch_t) * RH_REGEX_MAX_GROUPS);
 

@@ -298,7 +298,7 @@ _hideindex:		if (clstate->hideindex_rgx) {
 			}
 			if (t) rh_astrcat(&t, "|");
 			rh_astrcat(&t, d);
-			clstate->hideindex_rgx = regex_compile(t, rh_htaccess_regex_no_case, NO);
+			clstate->hideindex_rgx = regex_compile(t, rh_htaccess_regex_no_case, NO, NO);
 			pfree(t);
 			if (regex_is_error(clstate->hideindex_rgx)) {
 				rh_esay("%s/%s hideindex: regex error %s",
@@ -648,7 +648,7 @@ _addit:					rh_astrcat(&dpath, ss);
 
 			ss = dpath;
 
-			rgx = regex_compile(pat, rh_htaccess_regex_no_case, is_fmtstr(rwr) ? YES : NO);
+			rgx = regex_compile(pat, rh_htaccess_regex_no_case, is_fmtstr(rwr) ? YES : NO, NO);
 			if (regex_is_error(rgx)) {
 				rh_esay("%s/%s rewrite: regex error %s",
 					htadir, rh_htaccess_name, regex_error(rgx));

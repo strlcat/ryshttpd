@@ -46,7 +46,7 @@ void init_mime_regex(void)
 	size_t x;
 
 	for (x = 0; x < STAT_ARRAY_SZ(rh_mime_table); x++) {
-		rh_mime_table[x].rgx_precomp = regex_compile(rh_mime_table[x].fnames, YES, NO);
+		rh_mime_table[x].rgx_precomp = regex_compile(rh_mime_table[x].fnames, YES, NO, NO);
 		if (regex_is_error(rh_mime_table[x].rgx_precomp))
 			regex_xexits(rh_mime_table[x].rgx_precomp);
 	}

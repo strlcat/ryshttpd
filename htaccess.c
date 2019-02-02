@@ -45,7 +45,7 @@ static char *rewrite_resolve_substs(const void *rgx, const char *src, const char
 {
 	char *s, *d, *t;
 	char T[8];
-	size_t n, rsz, idx;
+	size_t rsz, idx;
 	char *r;
 
 	r = rh_strdup(rwr);
@@ -75,7 +75,7 @@ static char *rewrite_resolve_substs(const void *rgx, const char *src, const char
 
 		d += CSTR_SZ("}");
 		rh_strlcpy_real(T, s, d-s+1 > sizeof(T) ? sizeof(T) : d-s+1);
-		n = rh_strlrep(r, rsz, T, t);
+		rh_strlrep(r, rsz, T, t);
 		d = s + (t ? strlen(t) : 0);
 		pfree(t);
 	}
@@ -498,7 +498,6 @@ _do_matchip:		dpath = rh_strdup(t);
 			rh_yesno do_single_rwr;
 			void *rgx;
 			char *ss, *dd, *tt, *dpath, *pat, *rwr;
-			size_t dpathsz;
 			rh_yesno f, F, R;
 			size_t l;
 
@@ -658,7 +657,6 @@ _addit:					rh_astrcat(&dpath, ss);
 			}
 			if (regex_exec(rgx, dpath) == R) {
 				dpath = rewrite_resolve_substs(rgx, ss, rwr);
-				dpathsz = rh_szalloc(dpath);
 				pfree(ss); /* was dpath */
 				regex_free(rgx);
 

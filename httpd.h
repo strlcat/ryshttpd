@@ -263,8 +263,6 @@ void rh_nesay(const char *fmt, ...);
 void rh_esay(const char *fmt, ...);
 void rh_say(const char *fmt, ...);
 
-void block_signals(rh_yesno block, ...);
-
 struct fmtstr_args;
 
 #define APPEND_FSA(pfsa, pnr_fsa, sp, sz, sfmt, vdata)					\

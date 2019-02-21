@@ -168,7 +168,6 @@ static void server_atexit(int status)
 
 static void signal_exit(int sig)
 {
-	block_signals(YES, sig, 0);
 	in_exit = YES;
 	manage_clients(sig);
 	xexits("server: exited by signal %d", sig);
@@ -219,8 +218,6 @@ _last:		if ((char)x == '\n') continue;
 
 static void logrotate_on_signal(int sig)
 {
-	block_signals(YES, SIGHUP, SIGCHLD, 0);
-
 	getdatetime_r(rh_logfile, RH_ALLOC_MAX, rh_logfile_fmt);
 
 	if (svlogfd != 1) close(svlogfd);
@@ -236,8 +233,6 @@ static void logrotate_on_signal(int sig)
 		svlogfd = 1;
 		rh_strlcpy(rh_logfile, "<stdout>", RH_ALLOC_MAX);
 	}
-
-	block_signals(NO, SIGHUP, SIGCHLD, 0);
 }
 
 static void manage_clients(int sig)
@@ -246,8 +241,6 @@ static void manage_clients(int sig)
 	int logfd;
 	pid_t pid;
 	size_t sz, x, y;
-
-	block_signals(YES, SIGCHLD, 0);
 
 	sz = rh_szalloc(svlogln);
 	while ((pid = waitpid(-1, NULL, (in_exit == YES) ? 0 : WNOHANG)) > 0) {
@@ -271,8 +264,6 @@ _closefd:		close(logfd);
 		}
 		delete_client(pid);
 	}
-
-	block_signals(NO, SIGCHLD, 0);
 }
 
 #define SETOPT(s, d) do { pfree(s); s = rh_strdup(d); } while (0)

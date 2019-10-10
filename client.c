@@ -681,7 +681,7 @@ static rh_yesno do_tar_longname(const char *path, const char *prependpfx, struct
 	strcpy(tar->uid, "0000000");
 	strcpy(tar->gid, "0000000");
 	strcpy(tar->mtime, "00000000000");
-	rh_snprintf(tar->size, sizeof(tar->size), "%011o", sz);
+	rh_snprintf(tar->size, sizeof(tar->size), "%011zo", sz);
 	tar->typeflag = 'L';
 	do_tar_chksum(tar);
 	response_send_data(clstate, tar, sizeof(struct tar_header));
@@ -708,7 +708,7 @@ static rh_yesno do_tar_header(const char *path, const char *prependpfx, struct d
 	strcpy(tar->uname, "root");
 	strcpy(tar->gname, "wheel");
 	if (di->it_size <= 0x200000000ULL) {
-		rh_snprintf(tar->size, sizeof(tar->size), "%011o", (size_t)di->it_size);
+		rh_snprintf(tar->size, sizeof(tar->size), "%011llo", (size_t)di->it_size);
 	}
 	else {
 		char *p8 = tar->size + sizeof(tar->size);

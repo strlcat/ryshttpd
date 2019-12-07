@@ -314,7 +314,7 @@ _trim:		*d = 0; d++;
 
 	s = rdwr_data;
 	s += boundarylen + CSTR_SZ("\r\n");
-	d = memmem(rdwr_data, rh_szalloc(rdwr_data), "\r\n\r\n", CSTR_SZ("\r\n\r\n"));
+	d = rh_memmem(rdwr_data, rh_szalloc(rdwr_data), "\r\n\r\n", CSTR_SZ("\r\n\r\n"));
 	if (!d || d < s
 	|| d - rdwr_data < CSTR_SZ("\r\n\r\n"))
 		xexits("malformed POST data");
@@ -336,7 +336,7 @@ _trim:		*d = 0; d++;
 
 	if (filehead) {
 		s = filehead;
-		d = memmem(filehead, rh_szalloc(filehead), boundary, boundarylen);
+		d = rh_memmem(filehead, rh_szalloc(filehead), boundary, boundarylen);
 		if (d) {
 			d -= CSTR_SZ("\r\n");
 			d -= CSTR_SZ("--");

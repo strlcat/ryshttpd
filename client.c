@@ -1113,6 +1113,35 @@ _malformed:
 	/* done with temporary. */
 	pfree(s);
 
+	/* detect multiple headers. Their handling is not implemented now, so throw an error. */
+	if (clstate->tail && clstate->sztail > 0) {
+		s = (char *)clstate->tail;
+		size_t sz = clstate->sztail;
+
+		d = rh_memmem(s, sz, "\r\n", CSTR_SZ("\r\n"));
+		if (!d) d = s;
+		if ((!memcmp(s, "GET ", CSTR_SZ("GET "))
+		|| !memcmp(s, "HEAD ", CSTR_SZ("HEAD "))
+		|| !memcmp(s, "POST ", CSTR_SZ("POST ")))
+		&& rh_memmem(s, d-s, "HTTP/", CSTR_SZ("HTTP/"))
+		&& rh_memmem(s, sz, "\r\n\r\n", CSTR_SZ("\r\n\r\n"))) {
+			response_error(clstate, 400);
+			goto _done;
+		}
+
+		/* same for Unix-ish request */
+		d = rh_memmem(clstate->tail, clstate->sztail, "\n", CSTR_SZ("\n"));
+		if (!d) d = s;
+		if ((!memcmp(s, "GET ", CSTR_SZ("GET "))
+		|| !memcmp(s, "HEAD ", CSTR_SZ("HEAD "))
+		|| !memcmp(s, "POST ", CSTR_SZ("POST ")))
+		&& rh_memmem(s, d-s, "HTTP/", CSTR_SZ("HTTP/"))
+		&& rh_memmem(s, sz, "\n\n", CSTR_SZ("\n\n"))) {
+			response_error(clstate, 400);
+			goto _done;
+		}
+	}
+
 	/* client may pass some parameters. Split the path into two if there's any. */
 	s = rh_strdup(clstate->request);
 	d = strchr(s, '?');

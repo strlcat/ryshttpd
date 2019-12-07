@@ -340,6 +340,7 @@ rh_yesno str_empty(const char *str);
 size_t char_to_nul(char *s, size_t l, char c);
 size_t rh_strlcpy_real(char *dst, const char *src, size_t size);
 size_t rh_strlcpy(char *d, const char *s, size_t n);
+void *rh_memmem(const void *hs, size_t hsn, const void *ne, size_t nen);
 rh_yesno is_fmtstr(const char *s);
 void nuke_fmtstr_templates(char *line, size_t szline);
 char *parse_fmtstr(struct fmtstr_state *fst);

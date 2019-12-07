@@ -243,7 +243,9 @@ static void manage_clients(int sig)
 	size_t sz, x, y;
 
 	sz = rh_szalloc(svlogln);
-	while ((pid = waitpid(-1, NULL, (in_exit == YES) ? 0 : WNOHANG)) > 0) {
+	while (1) {
+		pid = waitpid(-1, NULL, (in_exit == YES) ? 0 : WNOHANG);
+		if (pid <= 0) break;
 		logfd = get_client_logfd(pid);
 		if (logfd != -1) {
 			polldf.fd = logfd;

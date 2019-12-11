@@ -124,6 +124,8 @@ void usage(void)
 	rh_say("    -O max_all_client_connections=int: set total connection limit that this httpd can serve");
 	rh_say("    -O client_ipv6_subnet=int: limit connections per IPv6 subnet prefix");
 	rh_say("    -O request_timeout=secs: first request timeout in seconds");
+	rh_say("    -O receive_timeout=secs: receive timeout in seconds");
+	rh_say("    -O send_timeout=secs: send timeout in seconds");
 	rh_say("    -O keepalive_timeout=secs: keepalive connection timeout in seconds");
 	rh_say("    -O keepalive_requests=int: maximum number of keepalive requests\n"
 		"      after which connection is forcibly closed");

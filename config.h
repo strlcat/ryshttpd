@@ -44,6 +44,10 @@
 #define RH_DEFAULT_ALL_CONNECTIONS_LIMIT 1000
 /* first request timeout */
 #define RH_DEFAULT_REQUEST_TIMEOUT 15
+/* receive (read from client) timeout, 0 to disable */
+#define RH_DEFAULT_RECEIVE_TIMEOUT 60
+/* send (write to client) timeout, 0 to disable */
+#define RH_DEFAULT_SEND_TIMEOUT 60
 /* keep alive timeout */
 #define RH_DEFAULT_KEEPALIVE_TIMEOUT 30
 /* max. nr of keep alive requests per single client server */

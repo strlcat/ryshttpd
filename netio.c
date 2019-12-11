@@ -28,6 +28,23 @@
 
 #include "httpd.h"
 
+void io_socket_timeout(int fd, unsigned long rcvtimeo, unsigned long sndtimeo)
+{
+	struct timeval tv;
+	unsigned long long t;
+
+	if (rcvtimeo > 0) {
+		t = rcvtimeo * 1000000ULL;
+		useconds_to_timeval(t, &tv);
+		if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv)) == -1) xerror("setting receive timeout");
+	}
+	if (sndtimeo > 0) {
+		t = sndtimeo * 1000000ULL;
+		useconds_to_timeval(t, &tv);
+		if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (void *)&tv, sizeof(tv)) == -1) xerror("setting send timeout");
+	}
+}
+
 static void timespec_diff(const struct timespec *start, const struct timespec *stop, struct timespec *result)
 {
 	if ((stop->tv_nsec - start->tv_nsec) < 0) {

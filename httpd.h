@@ -292,6 +292,7 @@ void *append_data(void *block, const void *data, size_t szdata);
 rh_yesno is_number(const char *s, int sign);
 int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);
 rh_yesno is_writable(const char *path);
+void useconds_to_timeval(unsigned long long useconds, struct timeval *tv);
 
 #define PATH_IS_FILE 1
 #define PATH_IS_DIR  2
@@ -442,6 +443,7 @@ size_t TLS_read(struct TLSContext *tlsctx, int fd, void *data, size_t szdata);
 size_t TLS_write(struct TLSContext *tlsctx, int fd, const void *data, size_t szdata);
 #endif
 
+void io_socket_timeout(int fd, unsigned long rcvtimeo, unsigned long sndtimeo);
 size_t io_recv_data(struct client_info *clinfo, void *data, size_t szdata, rh_yesno noretry, rh_yesno nosleep);
 size_t io_send_data(struct client_info *clinfo, const void *data, size_t szdata, rh_yesno noretry, rh_yesno nosleep);
 

@@ -58,3 +58,10 @@ rh_yesno is_writable(const char *path)
 	}
 	return NO;
 }
+
+void useconds_to_timeval(unsigned long long useconds, struct timeval *tv)
+{
+	rh_memzero(tv, sizeof(struct timeval));
+	tv->tv_sec = useconds / 1000000;
+	tv->tv_usec = useconds - ((useconds / 1000000) * 1000000);
+}

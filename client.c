@@ -398,8 +398,7 @@ static void install_us_alarm(unsigned long long useconds)
 	struct itimerval it;
 
 	rh_memzero(&it, sizeof(struct itimerval));
-	it.it_value.tv_sec = useconds / 1000000;
-	it.it_value.tv_usec = useconds % 1000000;
+	useconds_to_timeval(useconds, &it.it_value);
 	setitimer(ITIMER_REAL, &it, NULL);
 }
 

@@ -65,6 +65,8 @@ char *rh_content_charset;
 char *rh_list_date_fmt;
 unsigned long rh_client_request_timeout = RH_DEFAULT_REQUEST_TIMEOUT;
 unsigned long rh_client_keepalive_timeout = RH_DEFAULT_KEEPALIVE_TIMEOUT;
+unsigned long rh_client_receive_timeout = RH_DEFAULT_RECEIVE_TIMEOUT;
+unsigned long rh_client_send_timeout = RH_DEFAULT_SEND_TIMEOUT;
 size_t rh_client_keepalive_requests = RH_DEFAULT_KEEPALIVE_REQUESTS;
 unsigned int rh_client_ipv6_subnet = 64;
 rh_yesno rh_follow_symlinks;
@@ -456,6 +458,16 @@ int main(int argc, char **argv)
 					}
 					else if (!strcmp(s, "request_timeout")) {
 						rh_client_request_timeout = rh_str_long(p, &stoi);
+						if (!str_empty(stoi))
+							xexits("%s: invalid value, should be seconds number", p);
+					}
+					else if (!strcmp(s, "receive_timeout")) {
+						rh_client_receive_timeout = rh_str_long(p, &stoi);
+						if (!str_empty(stoi))
+							xexits("%s: invalid value, should be seconds number", p);
+					}
+					else if (!strcmp(s, "send_timeout")) {
+						rh_client_send_timeout = rh_str_long(p, &stoi);
 						if (!str_empty(stoi))
 							xexits("%s: invalid value, should be seconds number", p);
 					}
@@ -880,6 +892,9 @@ _sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
 			clinfo->sockaddrlen, &clinfo->ipaddr);
 		resolve_port(clinfo->af, clinfo->sockaddr,
 			clinfo->sockaddrlen, &clinfo->port);
+
+		/* set socket timeouts */
+		io_socket_timeout(clinfo->clfd, rh_client_receive_timeout, rh_client_send_timeout);
 
 		/* too many of you - go away. */
 		if (client_all_connections_limit > 0

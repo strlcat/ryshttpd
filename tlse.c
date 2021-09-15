@@ -929,14 +929,12 @@ struct TLSCertificate {
 
 typedef struct {
     union {
-        symmetric_CBC aes_local;
         gcm_state aes_gcm_local;
 #ifdef TLS_WITH_CHACHA20_POLY1305
         chacha_ctx chacha_local;
 #endif
     } ctx_local;
     union {
-        symmetric_CBC aes_remote;
         gcm_state aes_gcm_remote;
 #ifdef TLS_WITH_CHACHA20_POLY1305
         chacha_ctx chacha_remote;
@@ -2618,30 +2616,15 @@ void _private_tls_prf(struct TLSContext *context,
 
 int _private_tls_key_length(struct TLSContext *context) {
     switch (context->cipher) {
-        case TLS_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_RSA_WITH_AES_128_CBC_SHA256:
         case TLS_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
         case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
         case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
         case TLS_AES_128_GCM_SHA256:
             return 16;
-        case TLS_RSA_WITH_AES_256_CBC_SHA:
-        case TLS_RSA_WITH_AES_256_CBC_SHA256:
         case TLS_RSA_WITH_AES_256_GCM_SHA384:
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
         case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
         case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
         case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
         case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
         case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
@@ -2679,24 +2662,9 @@ int _private_tls_is_aead(struct TLSContext *context) {
 
 unsigned int _private_tls_mac_length(struct TLSContext *context) {
     switch (context->cipher) {
-        case TLS_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_RSA_WITH_AES_256_CBC_SHA:
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
-            return TLS_SHA1_MAC_SIZE;
-        case TLS_RSA_WITH_AES_128_CBC_SHA256:
-        case TLS_RSA_WITH_AES_256_CBC_SHA256:
         case TLS_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
         case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
         case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
         case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
         case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
@@ -2711,7 +2679,6 @@ unsigned int _private_tls_mac_length(struct TLSContext *context) {
         case TLS_RSA_WITH_AES_256_GCM_SHA384:
         case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
         case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
         case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
 #ifdef WITH_TLS_13
         case TLS_AES_256_GCM_SHA384:
@@ -3651,10 +3618,6 @@ void tls_destroy_packet(struct TLSPacket *packet) {
 
 int _private_tls_crypto_create(struct TLSContext *context, int key_length, unsigned char *localkey, unsigned char *localiv, unsigned char *remotekey, unsigned char *remoteiv) {
     if (context->crypto.created) {
-        if (context->crypto.created == 1) {
-            cbc_done(&context->crypto.ctx_remote.aes_remote);
-            cbc_done(&context->crypto.ctx_local.aes_local);
-        } else {
 #ifdef TLS_WITH_CHACHA20_POLY1305
             if (context->crypto.created == 2) {
 #endif
@@ -3665,7 +3628,6 @@ int _private_tls_crypto_create(struct TLSContext *context, int key_length, unsig
 #ifdef TLS_WITH_CHACHA20_POLY1305
             }
 #endif
-        }
         context->crypto.created = 0;
     }
     tls_init();
@@ -3692,41 +3654,14 @@ int _private_tls_crypto_create(struct TLSContext *context, int key_length, unsig
         if ((res1) || (res2))
             return TLS_GENERIC_ERROR;
         context->crypto.created = 2;
-    } else {
-        int res1 = cbc_start(cipherID, localiv, localkey, key_length, 0, &context->crypto.ctx_local.aes_local);
-        int res2 = cbc_start(cipherID, remoteiv, remotekey, key_length, 0, &context->crypto.ctx_remote.aes_remote);
-        
-        if ((res1) || (res2))
-            return TLS_GENERIC_ERROR;
-        context->crypto.created = 1;
     }
     return 0;
-}
-
-int _private_tls_crypto_encrypt(struct TLSContext *context, unsigned char *buf, unsigned char *ct, unsigned int len) {
-    if (context->crypto.created == 1)
-        return cbc_encrypt(buf, ct, len, &context->crypto.ctx_local.aes_local);
-
-    memset(ct, 0, len);
-    return TLS_GENERIC_ERROR;
-}
-
-int _private_tls_crypto_decrypt(struct TLSContext *context, unsigned char *buf, unsigned char *pt, unsigned int len) {
-    if (context->crypto.created == 1)
-        return cbc_decrypt(buf, pt, len, &context->crypto.ctx_remote.aes_remote);
-    
-    memset(pt, 0, len);
-    return TLS_GENERIC_ERROR;
 }
 
 void _private_tls_crypto_done(struct TLSContext *context) {
     unsigned char dummy_buffer[32];
     unsigned long tag_len = 0;
     switch (context->crypto.created) {
-        case 1:
-            cbc_done(&context->crypto.ctx_remote.aes_remote);
-            cbc_done(&context->crypto.ctx_local.aes_local);
-            break;
         case 2:
             gcm_done(&context->crypto.ctx_remote.aes_gcm_remote, dummy_buffer, &tag_len);
             gcm_done(&context->crypto.ctx_local.aes_gcm_local, dummy_buffer, &tag_len);
@@ -3805,53 +3740,6 @@ void tls_packet_update(struct TLSPacket *packet) {
                         mac_size = TLS_GCM_TAG_LEN;
                         length = packet->len - header_size + 8 + mac_size;
                     }
-                    if (packet->context->crypto.created == 1) {
-                        unsigned char *buf = (unsigned char *)TLS_MALLOC(length);
-                        if (buf) {
-                            unsigned char *ct = (unsigned char *)TLS_MALLOC(length + header_size);
-                            if (ct) {
-                                unsigned int buf_pos = 0;
-                                 memcpy(ct, packet->buf, header_size - 2);
-                                *(unsigned short *)&ct[header_size - 2] = htons(length);
-#ifdef TLS_LEGACY_SUPPORT
-                                if (packet->context->version != TLS_V10)
-#endif
-                                {
-                                    tls_random(buf, TLS_AES_IV_LENGTH);
-                                    buf_pos += TLS_AES_IV_LENGTH;
-                                }
-                                // copy payload
-                                memcpy(buf + buf_pos, packet->buf + header_size, packet->len - header_size);
-                                buf_pos += packet->len - header_size;
-                                if (packet->context->dtls) {
-                                    unsigned char temp_buf[5];
-                                    memcpy(temp_buf, packet->buf, 3);
-                                    *(unsigned short *)(temp_buf + 3) = *(unsigned short *)&packet->buf[header_size - 2];
-                                    uint64_t dtls_sequence_number = ntohll(*(uint64_t *)&packet->buf[3]);
-                                    _private_tls_hmac_message(1, packet->context, temp_buf, 5, packet->buf + header_size, packet->len  - header_size, buf + buf_pos, mac_size, dtls_sequence_number);
-                                } else
-                                    _private_tls_hmac_message(1, packet->context, packet->buf, packet->len, NULL, 0, buf + buf_pos, mac_size, 0);
-                                buf_pos += mac_size;
-                                
-                                memset(buf + buf_pos, padding - 1, padding);
-                                buf_pos += padding;
-                                
-                                //DEBUG_DUMP_HEX_LABEL("PT BUFFER", buf, length);
-                                _private_tls_crypto_encrypt(packet->context, buf, ct + header_size, length);
-                                TLS_FREE(packet->buf);
-                                packet->buf = ct;
-                                packet->len = length + header_size;
-                                packet->size = packet->len;
-                            } else {
-                                // invalidate packet
-                                memset(packet->buf, 0, packet->len);
-                            }
-                            TLS_FREE(buf);
-                        } else {
-                            // invalidate packet
-                            memset(packet->buf, 0, packet->len);
-                        }
-                    } else
 #ifdef TLS_WITH_CHACHA20_POLY1305
                     if (packet->context->crypto.created >= 2) {
 #else
@@ -4741,8 +4629,6 @@ int tls_cipher_supported(struct TLSContext *context, unsigned short cipher) {
 #endif
 #ifdef TLS_FORWARD_SECRECY
 #ifdef TLS_ECDSA_SUPPORTED
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
 #ifdef TLS_CLIENT_ECDSA
             if ((context) && (((context->certificates) && (context->certificates_count) && (context->ec_private_key)) || (!context->is_server)))
 #else
@@ -4750,8 +4636,6 @@ int tls_cipher_supported(struct TLSContext *context, unsigned short cipher) {
 #endif
                 return 1;
             return 0;
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
         case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
         case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
 #ifdef TLS_WITH_CHACHA20_POLY1305
@@ -4767,21 +4651,11 @@ int tls_cipher_supported(struct TLSContext *context, unsigned short cipher) {
             }
             return 0;
 #endif
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
 #endif
-        case TLS_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_RSA_WITH_AES_256_CBC_SHA:
-            return 1;
 #ifdef TLS_FORWARD_SECRECY
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
         case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
         case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
         case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
 #ifdef TLS_WITH_CHACHA20_POLY1305
         case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
@@ -4789,8 +4663,6 @@ int tls_cipher_supported(struct TLSContext *context, unsigned short cipher) {
 #endif
 #endif
         case TLS_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_RSA_WITH_AES_128_CBC_SHA256:
-        case TLS_RSA_WITH_AES_256_CBC_SHA256:
         case TLS_RSA_WITH_AES_256_GCM_SHA384:
             if ((context->version == TLS_V12) || (context->version == DTLS_V12))
                 return 1;
@@ -4815,16 +4687,12 @@ int tls_cipher_is_fs(struct TLSContext *context, unsigned short cipher) {
 #endif
     switch (cipher) {
 #ifdef TLS_ECDSA_SUPPORTED
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
 #ifdef TLS_WITH_CHACHA20_POLY1305
         case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
 #endif
             if ((context) && (context->certificates) && (context->certificates_count) && (context->ec_private_key))
                 return 1;
             return 0;
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
         case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
         case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
             if ((context->version == TLS_V12) || (context->version == DTLS_V12)) {
@@ -4833,17 +4701,9 @@ int tls_cipher_is_fs(struct TLSContext *context, unsigned short cipher) {
             }
             return 0;
 #endif
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
-            return 1;
-        case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
-        case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
         case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
         case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
-        case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
         case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
 #ifdef TLS_WITH_CHACHA20_POLY1305
         case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
@@ -4923,24 +4783,13 @@ int tls_choose_cipher(struct TLSContext *context, const unsigned char *buf, int 
 int tls_cipher_is_ephemeral(struct TLSContext *context) {
     if (context) {
         switch (context->cipher) {
-            case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
-            case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
-            case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
-            case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
             case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
             case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
             case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
                 return 1;
-            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
-            case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
-            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
             case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
             case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
             case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
             case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
             case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
             case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
@@ -4963,48 +4812,18 @@ int tls_cipher_is_ephemeral(struct TLSContext *context) {
 const char *tls_cipher_name(struct TLSContext *context) {
     if (context) {
         switch (context->cipher) {
-            case TLS_RSA_WITH_AES_128_CBC_SHA:
-                return "RSA-AES128CBC-SHA";
-            case TLS_RSA_WITH_AES_256_CBC_SHA:
-                return "RSA-AES256CBC-SHA";
-            case TLS_RSA_WITH_AES_128_CBC_SHA256:
-                return "RSA-AES128CBC-SHA256";
-            case TLS_RSA_WITH_AES_256_CBC_SHA256:
-                return "RSA-AES256CBC-SHA256";
             case TLS_RSA_WITH_AES_128_GCM_SHA256:
                 return "RSA-AES128GCM-SHA256";
             case TLS_RSA_WITH_AES_256_GCM_SHA384:
                 return "RSA-AES256GCM-SHA384";
-            case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
-                return "DHE-RSA-AES128CBC-SHA";
-            case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
-                return "DHE-RSA-AES256CBC-SHA";
-            case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
-                return "DHE-RSA-AES128CBC-SHA256";
-            case TLS_DHE_RSA_WITH_AES_256_CBC_SHA256:
-                return "DHE-RSA-AES256CBC-SHA256";
             case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
                 return "DHE-RSA-AES128GCM-SHA256";
             case TLS_DHE_RSA_WITH_AES_256_GCM_SHA384:
                 return "DHE-RSA-AES256GCM-SHA384";
-            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
-                return "ECDHE-RSA-AES128CBC-SHA";
-            case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
-                return "ECDHE-RSA-AES256CBC-SHA";
-            case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
-                return "ECDHE-RSA-AES128CBC-SHA256";
             case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
                 return "ECDHE-RSA-AES128GCM-SHA256";
             case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
                 return "ECDHE-RSA-AES256GCM-SHA384";
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-                return "ECDHE-ECDSA-AES128CBC-SHA";
-            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
-                return "ECDHE-ECDSA-AES256CBC-SHA";
-            case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-                return "ECDHE-ECDSA-AES128CBC-SHA256";
-            case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
-                return "ECDHE-ECDSA-AES256CBC-SHA384";
             case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
                 return "ECDHE-ECDSA-AES128GCM-SHA256";
             case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
@@ -5170,10 +4989,6 @@ int tls_is_ecdsa(struct TLSContext *context) {
     if (!context)
         return 0;
     switch (context->cipher) {
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
-        case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-        case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384:
         case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
         case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
 #ifdef TLS_WITH_CHACHA20_POLY1305
@@ -5600,7 +5415,7 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
         if (context->is_server) {
             // fallback ... this should never happen
             if (!context->cipher)
-                context->cipher = TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
+                context->cipher = TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
             
             tls_packet_uint16(packet, context->cipher);
             // no compression
@@ -5694,9 +5509,6 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
     #ifndef TLS_PREFER_CHACHA20
                 tls_packet_uint16(packet, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256);
     #endif
-                tls_packet_uint16(packet, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
-                tls_packet_uint16(packet, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA);
-                tls_packet_uint16(packet, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA);
     #else
                 // sizeof ciphers (16 ciphers * 2 bytes)
                 tls_packet_uint16(packet, TLS_CIPHERS_SIZE(11, 5));
@@ -5705,9 +5517,6 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
     #ifdef TLS_CLIENT_ECDSA
                 tls_packet_uint16(packet, TLS_CIPHERS_SIZE(13, 5));
                 tls_packet_uint16(packet, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
-                tls_packet_uint16(packet, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
-                tls_packet_uint16(packet, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA);
-                tls_packet_uint16(packet, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA);
     #else
                 // sizeof ciphers (14 ciphers * 2 bytes)
                 tls_packet_uint16(packet, TLS_CIPHERS_SIZE(9, 5));
@@ -5719,9 +5528,6 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
                 #endif
 #endif
                 tls_packet_uint16(packet, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
-                tls_packet_uint16(packet, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA);
-                tls_packet_uint16(packet, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA);
-                tls_packet_uint16(packet, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256);
 #ifdef TLS_WITH_CHACHA20_POLY1305
                 #ifndef TLS_PREFER_CHACHA20
                     tls_packet_uint16(packet, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256);
@@ -5741,10 +5547,6 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
                 // but is fully suported server-side
                 // tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384);
                 tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256);
-                tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256);
-                tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256);
-                tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_256_CBC_SHA);
-                tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_128_CBC_SHA);
 #ifdef TLS_WITH_CHACHA20_POLY1305
                 tls_packet_uint16(packet, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256);
 #endif
@@ -5754,30 +5556,19 @@ struct TLSPacket *tls_build_hello(struct TLSContext *context, int tls13_downgrad
                 // tls_packet_uint16(packet, TLS_RSA_WITH_AES_256_GCM_SHA384);
 #ifndef TLS_ROBOT_MITIGATION
                 tls_packet_uint16(packet, TLS_RSA_WITH_AES_128_GCM_SHA256);
-                tls_packet_uint16(packet, TLS_RSA_WITH_AES_256_CBC_SHA256);
-                tls_packet_uint16(packet, TLS_RSA_WITH_AES_128_CBC_SHA256);
-                tls_packet_uint16(packet, TLS_RSA_WITH_AES_256_CBC_SHA);
-                tls_packet_uint16(packet, TLS_RSA_WITH_AES_128_CBC_SHA);
 #endif
 #ifndef STRICT_TLS
             } else {
 #ifdef TLS_FORWARD_SECRECY
 #ifdef TLS_CLIENT_ECDHE
                 tls_packet_uint16(packet, TLS_CIPHERS_SIZE(5, 2));
-                tls_packet_uint16(packet, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA);
-                tls_packet_uint16(packet, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA);
 #else
                 tls_packet_uint16(packet, TLS_CIPHERS_SIZE(3, 2));
 #endif
-                tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_256_CBC_SHA);
-                tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_256_CBC_SHA);
-                tls_packet_uint16(packet, TLS_DHE_RSA_WITH_AES_128_CBC_SHA);
 #else
                 tls_packet_uint16(packet, TLS_CIPHERS_SIZE(0, 2));
 #endif
 #ifndef TLS_ROBOT_MITIGATION
-                tls_packet_uint16(packet, TLS_RSA_WITH_AES_256_CBC_SHA);
-                tls_packet_uint16(packet, TLS_RSA_WITH_AES_128_CBC_SHA);
 #endif
             }
 #endif
@@ -8127,84 +7918,6 @@ int tls_parse_message(struct TLSContext *context, unsigned char *buf, int buf_le
                 return TLS_INTEGRITY_FAILED;
             }
 #endif
-        } else {
-            int err = _private_tls_crypto_decrypt(context, buf + header_size, pt, length);
-            if (err) {
-                TLS_FREE(pt);
-                DEBUG_PRINT("Decryption error %i\n", (int)err);
-                _private_random_sleep(context, TLS_MAX_ERROR_SLEEP_uS);
-                return TLS_BROKEN_PACKET;
-            }
-            unsigned char padding_byte = pt[length - 1];
-            unsigned char padding = padding_byte + 1;
-            
-            // poodle check
-            int padding_index = length - padding;
-            if (padding_index > 0) {
-                int i;
-                int limit = length - 1;
-                for (i = length - padding; i < limit; i++) {
-                    if (pt[i] != padding_byte) {
-                        TLS_FREE(pt);
-                        DEBUG_PRINT("BROKEN PACKET (POODLE ?)\n");
-                        _private_random_sleep(context, TLS_MAX_ERROR_SLEEP_uS);
-                        _private_tls_write_packet(tls_build_alert(context, 1, decrypt_error));
-                        return TLS_BROKEN_PACKET;
-                    }
-                }
-            }
-            
-            unsigned int decrypted_length = length;
-            if (padding < decrypted_length)
-                decrypted_length -= padding;
-            
-            DEBUG_DUMP_HEX_LABEL("decrypted", pt, decrypted_length);
-            ptr = pt;
-#ifdef TLS_LEGACY_SUPPORT
-            if ((context->version != TLS_V10) && (decrypted_length > TLS_AES_IV_LENGTH)) {
-                decrypted_length -= TLS_AES_IV_LENGTH;
-                ptr += TLS_AES_IV_LENGTH;
-            }
-#else
-            if (decrypted_length > TLS_AES_IV_LENGTH) {
-                decrypted_length -= TLS_AES_IV_LENGTH;
-                ptr += TLS_AES_IV_LENGTH;
-            }
-#endif
-            length = decrypted_length;
-            
-            unsigned int mac_size = _private_tls_mac_length(context);
-            if ((length < mac_size) || (!mac_size)) {
-                TLS_FREE(pt);
-                DEBUG_PRINT("BROKEN PACKET\n");
-                _private_random_sleep(context, TLS_MAX_ERROR_SLEEP_uS);
-                _private_tls_write_packet(tls_build_alert(context, 1, decrypt_error));
-                return TLS_BROKEN_PACKET;
-            }
-            
-            length -= mac_size;
-            
-            const unsigned char *message_hmac = &ptr[length];
-            unsigned char hmac_out[TLS_MAX_MAC_SIZE];
-            unsigned char temp_buf[5];
-            memcpy(temp_buf, buf, 3);
-            *(unsigned short *)(temp_buf + 3) = htons(length);
-            unsigned int hmac_out_len = _private_tls_hmac_message(0, context, temp_buf, 5, ptr, length, hmac_out, mac_size, dtls_sequence_number);
-            if ((hmac_out_len != mac_size) || (memcmp(message_hmac, hmac_out, mac_size))) {
-                DEBUG_PRINT("INTEGRITY CHECK FAILED (msg length %i)\n", length);
-                DEBUG_DUMP_HEX_LABEL("HMAC RECEIVED", message_hmac, mac_size);
-                DEBUG_DUMP_HEX_LABEL("HMAC COMPUTED", hmac_out, hmac_out_len);
-                TLS_FREE(pt);
-
-                // silently ignore packet for DTLS
-                if (context->dtls)
-                    return header_size + length;
-
-                _private_random_sleep(context, TLS_MAX_ERROR_SLEEP_uS);
-                _private_tls_write_packet(tls_build_alert(context, 1, bad_record_mac));
-
-                return TLS_INTEGRITY_FAILED;
-            }
         }
     }
     context->remote_sequence_number++;
@@ -9577,18 +9290,6 @@ int tls_export_context(struct TLSContext *context, unsigned char *buffer, unsign
         tls_packet_append(packet, context->crypto.ctx_local_mac.local_nonce, TLS_CHACHA20_IV_LENGTH);
         tls_packet_append(packet, context->crypto.ctx_remote_mac.remote_nonce, TLS_CHACHA20_IV_LENGTH);
 #endif
-    } else {
-        unsigned char iv[TLS_AES_IV_LENGTH];
-        unsigned long len = TLS_AES_IV_LENGTH;
-        
-        memset(iv, 0, TLS_AES_IV_LENGTH);
-        cbc_getiv(iv, &len, &context->crypto.ctx_local.aes_local);
-        tls_packet_uint8(packet, TLS_AES_IV_LENGTH);
-        tls_packet_append(packet, iv, len);
-        
-        memset(iv, 0, TLS_AES_IV_LENGTH);
-        cbc_getiv(iv, &len, &context->crypto.ctx_remote.aes_remote);
-        tls_packet_append(packet, iv, TLS_AES_IV_LENGTH);
     }
     
     tls_packet_uint8(packet, context->exportable_size);

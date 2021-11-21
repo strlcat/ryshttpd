@@ -9,15 +9,8 @@
 /* Use libmagic. Without it will include small static mime table based on regex file names. */
 /* #define WITH_LIBMAGIC */
 
-/* Use TLS with embedded TLSE. This option blows binary size a bit. */
-/* #define WITH_TLS */
-
 /* default listening port (both IPv4 and IPv6) */
 #define RH_DEFAULT_PORT "8079"
-#ifdef WITH_TLS
-/* default tls listening port (both IPv4 and IPv6) */
-#define RH_DEFAULT_TLS_PORT "4432"
-#endif
 /* default "Server:" and pages footer server identifier */
 #define RH_DEFAULT_IDENT PROGRAM_NAME
 /* default log format */

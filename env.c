@@ -50,9 +50,6 @@ void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_st
 	APPEND_FSA(tfsa, nr_tfsa, "bindaddr4", 0, "%s", rh_bindaddr4_s);
 	APPEND_FSA(tfsa, nr_tfsa, "bindaddr6", 0, "%s", rh_bindaddr6_s);
 	APPEND_FSA(tfsa, nr_tfsa, "bindport", 0, "%s", rh_port_s);
-#ifdef WITH_TLS
-	APPEND_FSA(tfsa, nr_tfsa, "bindtlsport", 0, "%s", rh_tlsport_s);
-#endif
 	APPEND_FSA(tfsa, nr_tfsa, "httpident", 0, "%s", rh_ident);
 	APPEND_FSA(tfsa, nr_tfsa, "httproot", 0, "%s", clstate->httproot);
 	APPEND_FSA(tfsa, nr_tfsa, "logfile", 0, "%s", rh_logfile);
@@ -75,11 +72,7 @@ void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_st
 	APPEND_FSA(tfsa, nr_tfsa, "clinfo_port", 0, "%s", clinfo->port);
 	APPEND_FSA(tfsa, nr_tfsa, "clinfo_servport", 0, "%s", clinfo->servport);
 	APPEND_FSA(tfsa, nr_tfsa, "client_ipaddr", 0, "%s", clstate->ipaddr); /* <-- use this */
-#ifdef WITH_TLS
-	APPEND_FSA(tfsa, nr_tfsa, "client_proto", 0, "%s", clinfo->cltls ? "https" : "http");
-#else
 	APPEND_FSA(tfsa, nr_tfsa, "client_proto", 0, "%s", "http");
-#endif
 
 	APPEND_FSA(tfsa, nr_tfsa, "req_time", 0, "%s", clstate->request_date);
 	APPEND_FSA(tfsa, nr_tfsa, "req_keepalive", 0, "%s",
@@ -106,7 +99,8 @@ void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_st
 		case PATH_IS_FILE:
 			if (clstate->is_exec) s = "X";
 			else if (clstate->is_rsrc) s = "R";
-			else s = "F"; break;
+			else s = "F";
+			break;
 		case PATH_IS_DIR: s = "D"; break;
 		default: s = ""; break;
 	}

@@ -20,10 +20,6 @@ override CFLAGS+=-DWITH_LIBMAGIC
 override LDFLAGS+=-lmagic
 endif
 
-ifneq (,$(TLS))
-override CFLAGS+=-DWITH_TLS
-endif
-
 ifneq (,$(PIE))
 # Linux and other systems with gcc and binutils
 override CFLAGS+=-fPIE
@@ -33,7 +29,7 @@ endif
 default: ryshttpd
 all: ryshttpd htupload
 
-RYSHTTPD_SRCS = $(filter-out htupload.c libtomcrypt.c, $(wildcard *.c))
+RYSHTTPD_SRCS = $(filter-out htupload.c, $(wildcard *.c))
 HTUPLOAD_SRCS = htupload.c conf.c say.c error.c memory.c io.c strrep.c regexmatch.c xmalloc.c xstrlcpy.c xmemmem.c
 HDRS = $(wildcard *.h)
 RYSHTTPD_OBJS = $(RYSHTTPD_SRCS:.c=.o)

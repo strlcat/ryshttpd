@@ -575,11 +575,6 @@ _rewrite:		/*
 					}
 				}
 				else if (!strcmp(ss, "clinfo_proto")) {
-#ifdef WITH_TLS
-					if (clstate->clinfo->cltls)
-						rh_astrcat(&dpath, "https");
-					else
-#endif
 					rh_astrcat(&dpath, "http");
 				}
 				else if (!strcmp(ss, "req_method")) {

@@ -32,20 +32,11 @@ void usage(void)
 {
 	rh_say(PROGRAM_NAME " is an embedded HTTP server.");
 	rh_say("usage: %s <-r httproot> "
-#ifdef WITH_TLS
-		"<-I/-T cert.crt:cert.key> [-P tlsport] "
-#endif
 		"[-4FV] [-R resdef] [-p port] [-l logfile] [-O OPTION,...]", progname);
 	rh_say("\n");
 	rh_say("  -r httproot: (mandatory) specify http root directory to serve files from");
 	rh_say("  -p port: specify alternative port number to bind to");
 	rh_say("  -4: use only IPv4, never try to use IPv6");
-#ifdef WITH_TLS
-	rh_say("  -I: disable TLS completely and do not bind a TLS socket, or");
-	rh_say("  -T cert.crt:cert.key: specify paths to server certificate and it's private key");
-	rh_say("    For TLS enabled server, either -I or -T is mandatory too, alongside with -r.");
-	rh_say("  -P tlsport: specify alternative TLS port number to bind to");
-#endif
 	rh_say("  -F: do not daemonise, stay in foreground (to see error messages)");
 	rh_say("  -l logfile: enable logging to logfile (default is to never log anything)\n"
 		"    It accepts strftime format, so filename may include current date\n"

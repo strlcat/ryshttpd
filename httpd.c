@@ -95,12 +95,6 @@ useconds_t rh_oom_timer;
 unsigned long rh_oom_max_attempts;
 int rh_on_fs_error;
 rh_yesno rh_no_cache_headers;
-#ifdef WITH_TLS
-char *rh_tlsport_s;
-static char *rh_tls_certf;
-static char *rh_tls_keyf;
-static rh_yesno disable_tls;
-#endif
 
 void *rh_indexes_rgx;
 void *rh_hostnames_rgx;
@@ -112,13 +106,6 @@ static int sv4fd = -1;
 static struct sockaddr_in sv4addr;
 static int sv6fd = -1;
 static struct sockaddr_in6 sv6addr;
-#ifdef WITH_TLS
-static int sv4tlsfd = -1;
-static struct sockaddr_in sv4tlsaddr;
-static int sv6tlsfd = -1;
-static struct sockaddr_in6 sv6tlsaddr;
-static struct TLSContext *svtlsctx;
-#endif
 static fd_set svfds;
 
 static int svlogfd;
@@ -152,20 +139,9 @@ static void manage_clients(int sig);
 
 static void server_atexit(int status)
 {
-#ifdef WITH_TLS
-	if (svtlsctx) {
-		tls_destroy_context(svtlsctx);
-		svtlsctx = NULL;
-	}
-#endif
-
 	if (svlogfd != -1) close(svlogfd);
 	close(sv4fd);
 	if (sv6fd != -1) close(sv6fd);
-#ifdef WITH_TLS
-	if (sv4tlsfd != -1) close(sv4tlsfd);
-	if (sv6tlsfd != -1) close(sv6tlsfd);
-#endif
 }
 
 static void signal_exit(int sig)
@@ -175,28 +151,6 @@ static void signal_exit(int sig)
 	manage_clients(sig);
 	xexits("server: exited by signal %d", sig);
 }
-
-#ifdef WITH_TLS
-static void *load_plain_file(const char *filename)
-{
-	int fd;
-	size_t fsz;
-	void *r;
-
-	fd = open(filename, O_RDONLY);
-	if (fd == -1) return NULL;
-	fsz = (size_t)rh_fdsize(fd);
-	if (fsz == -1) {
-		close(fd);
-		return NULL;
-	}
-	r = rh_malloc(fsz);
-	io_read_data(fd, r, fsz, NO, NULL);
-	close(fd);
-
-	return r;
-}
-#endif
 
 static void filter_log_simple(char *logln, size_t szlogln)
 {
@@ -300,9 +254,6 @@ int main(int argc, char **argv)
 	rh_atexit = server_atexit;
 
 	rh_port_s = rh_strdup(RH_DEFAULT_PORT);
-#ifdef WITH_TLS
-	rh_tlsport_s = rh_strdup(RH_DEFAULT_TLS_PORT);
-#endif
 	rh_ident = rh_strdup(RH_DEFAULT_IDENT);
 	rh_indexes_s = rh_strdup(RH_DEFAULT_INDEXES);
 	rh_htaccess_name = rh_strdup(RH_DEFAULT_HTACCESS_NAME);
@@ -314,30 +265,11 @@ int main(int argc, char **argv)
 	rh_logfmt = rh_strdup(RH_DEFAULT_LOG_FORMAT);
 	rh_list_date_fmt = rh_strdup(LIST_DATE_FMT);
 
-	while ((c = getopt(argc, argv, "hr:4Ip:P:T:l:O:FR:V")) != -1) {
+	while ((c = getopt(argc, argv, "hr:4p:l:O:FR:V")) != -1) {
 		switch (c) {
 			case 'r': SETOPT(rh_root_dir, optarg); break;
 			case '4': FLIP_YESNO(ipv4_only); break;
 			case 'p': SETOPT(rh_port_s, optarg); break;
-#ifdef WITH_TLS
-			case 'I': FLIP_YESNO(disable_tls); break;
-			case 'P':
-				if (disable_tls == YES)
-					xexits("TLS was disabled with -I. Repeat -I again.");
-				SETOPT(rh_tlsport_s, optarg);
-				break;
-			case 'T':
-				if (disable_tls == YES)
-					xexits("TLS was disabled with -I. Repeat -I again.");
-				T = rh_strdup(optarg);
-				s = strchr(T, ':');
-				if (!s) xexits("-T: option requires certificate:keyfile paths");
-				*s = 0; s++;
-				SETOPT(rh_tls_certf, T);
-				SETOPT(rh_tls_keyf, s);
-				pfree(T);
-				break;
-#endif
 			case 'l': SETOPT(rh_logfile_fmt, optarg); break;
 			case 'F': FLIP_YESNO(no_daemonise); break;
 			case 'R':
@@ -540,11 +472,6 @@ int main(int argc, char **argv)
 			regex_xexits(rh_hostnames_rgx);
 	}
 
-#ifdef WITH_TLS
-	if (!disable_tls && (!rh_tls_certf || !rh_tls_keyf))
-		xexits("Please specify TLS server certificate and key with -T!");
-#endif
-
 	if (!rh_root_dir) xexits("root directory is required!");
 	rh_strlrep(rh_root_dir, rh_szalloc(rh_root_dir), "//", "/");
 
@@ -588,90 +515,6 @@ int main(int argc, char **argv)
 	}
 	else svlogfd = -1;
 
-#ifdef WITH_TLS
-	/* Init TLS first */
-
-	/* Admin disabled TLS. Skip it. */
-	if (disable_tls == YES) goto _plaininit;
-
-	/* Admin requested operating only on V4 socket. */
-	if (ipv4_only == YES) goto _v4tlsinit;
-
-	/* IPv6 TLS socket init */
-	sv6tlsfd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-	if (sv6tlsfd == -1) goto _v4tlsinit; /* ok no v6, fallback to v4 */
-	c = 1;
-	if (setsockopt(sv6tlsfd, SOL_SOCKET, SO_REUSEADDR, &c, sizeof(c)) == -1)
-		rh_perror("error setting SO_REUSEADDR TLS ipv6 socket option");
-#if defined(SOL_IPV6) && defined(IPV6_V6ONLY)
-	c = 1;
-	if (setsockopt(sv6tlsfd, SOL_IPV6, IPV6_V6ONLY, &c, sizeof(c)) == -1)
-		rh_perror("error setting IPV6_V6ONLY TLS ipv6 socket option");
-#endif
-
-	rh_memzero(&sv6tlsaddr, sizeof(sv6tlsaddr));
-	sv6tlsaddr.sin6_family = AF_INET6;
-	if (rh_bindaddr6_s) {
-		if (inet_pton(AF_INET6, rh_bindaddr6_s, &sv6tlsaddr.sin6_addr) < 0)
-			xexits("%s: invalid ipv6 bind address was specified!", rh_bindaddr6_s);
-	}
-	else sv6tlsaddr.sin6_addr = in6addr_any;
-	sv6tlsaddr.sin6_port = htons(rh_str_int(rh_tlsport_s, &stoi));
-	if (!str_empty(stoi)) xexits("%s: invalid port number", rh_tlsport_s);
-
-	if (bind(sv6tlsfd, (struct sockaddr *)&sv6tlsaddr, sizeof(sv6tlsaddr)) == -1) {
-		rh_perror("ipv6 TLS binding error");
-		close(sv6tlsfd);
-		sv6tlsfd = -1;
-		goto _v4tlsinit;
-	}
-
-	if (listen(sv6tlsfd, 128) == -1) {
-		rh_perror("ipv6 TLS listening error");
-		close(sv6tlsfd);
-		sv6tlsfd = -1;
-		goto _v4tlsinit;
-	}
-
-_v4tlsinit:
-	/* IPv4 TLS socket init */
-	sv4tlsfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (sv4tlsfd == -1) xerror("error creating TLS socket");
-	c = 1;
-	if (setsockopt(sv4tlsfd, SOL_SOCKET, SO_REUSEADDR, &c, sizeof(c)) == -1)
-		rh_perror("error setting SO_REUSEADDR TLS socket option");
-
-	rh_memzero(&sv4tlsaddr, sizeof(sv4tlsaddr));
-	sv4tlsaddr.sin_family = AF_INET;
-	if (rh_bindaddr4_s) {
-		if (inet_pton(AF_INET, rh_bindaddr4_s, &sv4tlsaddr.sin_addr) < 0)
-			xexits("%s: invalid bind address was specified!", rh_bindaddr4_s);
-	}
-	else sv4tlsaddr.sin_addr.s_addr = INADDR_ANY;
-	sv4tlsaddr.sin_port = htons(rh_str_int(rh_tlsport_s, &stoi));
-	if (!str_empty(stoi)) xexits("%s: invalid port number", rh_tlsport_s);
-
-	if (bind(sv4tlsfd, (struct sockaddr *)&sv4tlsaddr, sizeof(sv4tlsaddr)) == -1)
-		xerror("TLS binding error");
-
-	if (listen(sv4tlsfd, 128) == -1)
-		xerror("TLS listening error");
-
-	svtlsctx = tls_create_context(YES, TLS_V12);
-	if (!svtlsctx) xexits("Error creating TLS server context");
-	s = load_plain_file(rh_tls_certf);
-	if (!s) xerror("%s", rh_tls_certf);
-	if (tls_load_certificates(svtlsctx, (unsigned char *)s, (int)rh_szalloc(s)) == TLS_GENERIC_ERROR)
-		xexits("Server certificate load error");
-	pfree(s);
-	s = load_plain_file(rh_tls_keyf);
-	if (!s) xerror("%s", rh_tls_keyf);
-	if (tls_load_private_key(svtlsctx, (unsigned char *)s, (int)rh_szalloc(s)) == TLS_GENERIC_ERROR)
-		xexits("Server certificate key load error");
-	pfree(s);
-
-_plaininit:
-#endif
 	/* Admin requested operating only on V4 socket. */
 	if (ipv4_only == YES) goto _v4init;
 
@@ -767,18 +610,7 @@ _v4init:
 		/* Listen to any server fds we have, even if just one. */
 		FD_ZERO(&svfds);
 		maxfd = -1;
-#ifdef WITH_TLS
-		/* TLS first! */
-		if (sv4tlsfd != -1) {
-			FD_SET(sv4tlsfd, &svfds);
-			if (sv4tlsfd > maxfd) maxfd = sv4tlsfd;
-		}
-		/* V6 server is optional. */
-		if (sv6tlsfd != -1) {
-			FD_SET(sv6tlsfd, &svfds);
-			if (sv6tlsfd > maxfd) maxfd = sv6tlsfd;
-		}
-#endif
+
 		/* V4 server is required, so it's always there. */
 		FD_SET(sv4fd, &svfds);
 		if (sv4fd > maxfd) maxfd = sv4fd;
@@ -839,54 +671,6 @@ _sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
 				goto _drop_client;
 			}
 		}
-#ifdef WITH_TLS
-		/* Accepting new V4 TLS connection */
-		else if (sv4tlsfd != -1 && FD_ISSET(sv4tlsfd, &svfds)) {
-			/* Accepted V4 connection - mark as such */
-			clinfo->af = AF_INET;
-
-			/* Preallocate things for accept call */
-			clinfo->sockaddrlen = sizeof(struct sockaddr_in);
-			clinfo->sockaddr = rh_malloc(sizeof(struct sockaddr_in));
-
-			/* Fill TLS server port number */
-			clinfo->servport = rh_strdup(rh_tlsport_s);
-
-			/* Accept connection fd */
-			clinfo->clfd = accept(sv4tlsfd,
-				(struct sockaddr *)clinfo->sockaddr, &clinfo->sockaddrlen);
-			if (clinfo->clfd == -1) {
-				rh_perror("TLS accepting error");
-				goto _drop_client;
-			}
-
-			/* Mark as TLS connection - client will process TLS after fork */
-			clinfo->cltls = THIS_IS_TLS_CONN;
-		}
-		/* Accepting new V6 TLS connection */
-		else if (sv6tlsfd != -1 && FD_ISSET(sv6tlsfd, &svfds)) {
-			/* Accepted V6 connection - mark as such */
-			clinfo->af = AF_INET6;
-
-			/* Preallocate things for accept call */
-			clinfo->sockaddrlen = sizeof(struct sockaddr_in6);
-			clinfo->sockaddr = rh_malloc(sizeof(struct sockaddr_in6));
-
-			/* Fill TLS server port number */
-			clinfo->servport = rh_strdup(rh_tlsport_s);
-
-			/* Accept connection fd */
-			clinfo->clfd = accept(sv6tlsfd,
-				(struct sockaddr *)clinfo->sockaddr, &clinfo->sockaddrlen);
-			if (clinfo->clfd == -1) {
-				rh_perror("ipv6 TLS accepting error");
-				goto _drop_client;
-			}
-
-			/* Mark as TLS connection - client will process TLS after fork */
-			clinfo->cltls = THIS_IS_TLS_CONN;
-		}
-#endif
 		/* Something weird happened. */
 		else {
 			rh_perror("select returned no fds!");
@@ -986,10 +770,6 @@ _tryssrd:			if (setsockopt(logpipe[0], SOL_SOCKET, SO_RCVBUF,
 		if (pid == 0) {
 			close(sv4fd);
 			if (sv6fd != -1) close(sv6fd);
-#ifdef WITH_TLS
-			if (sv4tlsfd != -1) close(sv4tlsfd);
-			if (sv6tlsfd != -1) close(sv6tlsfd);
-#endif
 			clinfo->pid = getpid();
 			if (svlogfd != -1) {
 				pfree(svlogln);
@@ -1019,13 +799,6 @@ _tryssrd:			if (setsockopt(logpipe[0], SOL_SOCKET, SO_RCVBUF,
 				free_user_switch(usw);
 			}
 
-#ifdef WITH_TLS
-			if (clinfo->cltls == THIS_IS_TLS_CONN) {
-				/* Save pointer to server context */
-				clinfo->svtls = svtlsctx;
-				/* Client does main TLS stuff on it's own... */
-			}
-#endif
 			/* Run the main client code */
 			run_client(clinfo);
 			rh_exit(0);

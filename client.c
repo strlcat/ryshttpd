@@ -416,21 +416,6 @@ static void set_timeout_alarm(unsigned long secs)
 
 static void client_atexit(int status)
 {
-#ifdef WITH_TLS
-	if (clstate->clinfo->cltls) {
-		tls_close_notify(clstate->clinfo->cltls);
-		TLS_send_pending(clstate->clinfo->clfd, clstate->clinfo->cltls);
-
-		tls_destroy_context(clstate->clinfo->cltls);
-		clstate->clinfo->cltls = NULL;
-
-		if (clstate->clinfo->svtls) {
-			tls_destroy_context(clstate->clinfo->svtls);
-			clstate->clinfo->svtls = NULL;
-		}
-	}
-#endif
-
 	close(clstate->clinfo->clfd);
 	if (clstate->clinfo->logfd != -1)
 		close(clstate->clinfo->logfd);
@@ -931,33 +916,6 @@ void run_client(struct client_info *clinfo)
 
 	/* Secure destroy. */
 	rh_atexit = client_atexit;
-
-#ifdef WITH_TLS
-	/* TLS stuff. */
-	if (clinfo->cltls == THIS_IS_TLS_CONN) {
-		/* Create new client TLS context */
-		clinfo->cltls = tls_accept(clinfo->svtls);
-		if (!clinfo->cltls)
-			xexits("Creating TLS client context failed");
-		/* Parse initial client hello & stuff */
-		while (tls_established(clinfo->cltls) <= 0) {
-			if (TLS_parsemsg(clinfo->cltls, clinfo->clfd,
-			client_read_pool, rh_rdwr_bufsize) == NO) {
-				set_timeout_alarm(0);
-				if (clstate->nr_requests == 0) {
-					s = NULL;
-					getdatetime(&s, rh_timefmt);
-					rh_asprintf(&clstate->altlogline,
-						"[%s]:%s [%s] %u TLS message corrupted or error",
-						clstate->ipaddr, clinfo->port, s, clinfo->pid);
-					pfree(s);
-					write_log_line(clstate);
-				}
-				goto _do_exit;
-			}
-		}
-	}
-#endif
 
 _start:	s = d = t = NULL;
 	/* read raw request from client up to maximum buffer size */
@@ -1521,9 +1479,6 @@ _cgiserver:		tenvp = NULL;
 			pfree(d);
 
 			cgisetenv(t, "%s=%s", "SERVER_PORT", clinfo->servport);
-#ifdef WITH_TLS
-			if (rh_tlsport_s) cgisetenv(t, "%s=%s", "SERVER_TLS_PORT", rh_tlsport_s);
-#endif
 			cgisetenv(t, "%s=%s", "REMOTE_PORT", clinfo->port);
 
 			cgisetenv(t, "%s=%s", "PWD", wdir);
@@ -1566,11 +1521,7 @@ _cgiserver:		tenvp = NULL;
 			}
 			cgisetenv(t, "%s=%s", "CLIENT_ADDR_FAMILY", d);
 			cgisetenv(t, "%s=%s", "CLIENT_ADDR", clinfo->ipaddr);
-#ifdef WITH_TLS
-			cgisetenv(t, "%s=%s", "CLIENT_PROTOCOL", clinfo->cltls ? "https" : "http");
-#else
 			cgisetenv(t, "%s=%s", "CLIENT_PROTOCOL", "http");
-#endif
 			cgisetenv(t, "%s=%u", "CLIENT_KEEP_ALIVE", clstate->is_keepalive == YES ? 1 : 0);
 			cgisetenv(t, "%s=%u", "REQUEST_NUMBER", clstate->nr_requests);
 

@@ -34,7 +34,6 @@ Features:
 - is able to run single CGI script for every request (a so called "CGI server" mode),
 - configurable HTTP keep alive support,
 - supports IPv6,
-- supports TLS v1.0/1.1/1.2 with help from TLSe (https://github.com/eduardsui/tlse),
 - limits number of concurrent client connections,
 - limits IPv6 connections to a /64 IPv6 subnet, not to a /128 single IPv6 address,
   to prevent possible DoS/resource exhaustion attacks,
@@ -74,7 +73,6 @@ Standards:
 - currently supports only HTTP GET, HEAD and POST (for CGI) requests,
 - POSIX.1-2001, C99 conformant, gcc 4.2.1 compatible, no special apis or syscalls used,
 - POSIX.1-2001 extended regex matching engine,
-- TLS v1.0/1.1/1.2 if TLSe (WITH_TLS) enabled; NO INSECURE SSL 2.0/3.0,
 - At least builds fine on musl system with only _BSD_SOURCE defined.
 
 To be considered (long term):
@@ -433,9 +431,6 @@ THANKS AND CREDITS
 To SANELINUX dev.Team, namely:
 - Vsevolod Krasovsky (for original idea and inspiration),
 - Astafiev Anton (for many suggestions about how it could be better).
-
-To Eduard Suica, the author of TLSe, for such a good embeddable
-TLS v1.0/1.1/1.2 implementation, and for further support and bug hunting.
 
 COPYRIGHT AND DISCLAIMER
 

@@ -127,14 +127,6 @@ static size_t io_ratelimit_data(rh_yesno write, struct client_info *clinfo, void
 			ratelim_snapshot_time(&tps);
 
 			/* Do send/recv a chunk */
-#ifdef WITH_TLS
-			if (clinfo->cltls) t = write ?
-				  TLS_write(clinfo->cltls, clinfo->clfd,
-				data+(szdata-xszdata), rl->chunk)
-				: TLS_read(clinfo->cltls, clinfo->clfd,
-				data+(szdata-xszdata), rl->chunk);
-			else
-#endif
 			t = write ?
 				  io_write_data(clinfo->clfd,
 				data+(szdata-xszdata), rl->chunk, noretry, NULL)
@@ -163,14 +155,6 @@ static size_t io_ratelimit_data(rh_yesno write, struct client_info *clinfo, void
 
 	if (xszdata) {
 		if (rl->chunk > 0) ratelim_snapshot_time(&tps);
-#ifdef WITH_TLS
-		if (clinfo->cltls) t = write ?
-			  TLS_write(clinfo->cltls, clinfo->clfd,
-			data+(szdata-xszdata), xszdata)
-			: TLS_read(clinfo->cltls, clinfo->clfd,
-			data+(szdata-xszdata), xszdata);
-		else
-#endif
 		t = write ?
 			  io_write_data(clinfo->clfd,
 			data+(szdata-xszdata), xszdata, noretry, NULL)

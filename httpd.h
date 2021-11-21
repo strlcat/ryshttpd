@@ -86,22 +86,6 @@
 #define rh_calloc xcalloc
 #define rh_szalloc xszalloc
 
-#ifdef WITH_TLS
-#define XMALLOC rh_malloc
-#define XCALLOC rh_calloc
-#define XREALLOC rh_realloc
-#define XFREE rh_free
-#define TLS_MALLOC rh_malloc
-#define TLS_REALLOC rh_realloc
-#define TLS_FREE pfree
-#define TLS_AMALGAMATION
-#include "tlse.h"
-#define THIS_IS_TLS_CONN ((void *)0x443) /* A marker describing that it is a TLS connection. */
-#else
-#define TLSE_C
-#define TLSE_H
-#endif
-
 #ifndef FNM_CASEFOLD
 #define FNM_CASEFOLD 0
 #endif
@@ -145,9 +129,6 @@ extern char *rh_hostnames;
 extern char *rh_bindaddr4_s;
 extern char *rh_bindaddr6_s;
 extern char *rh_port_s;
-#ifdef WITH_TLS
-extern char *rh_tlsport_s;
-#endif
 extern char *rh_ident;
 extern char *rh_root_dir;
 extern char *rh_logfile;
@@ -226,10 +207,6 @@ struct client_info {
 
 	/* I/O information */
 	int clfd; /* client fd to which writings are necessary */
-#ifdef WITH_TLS
-	struct TLSContext *svtls; /* server side TLSE context */
-	struct TLSContext *cltls; /* client side TLSE context */
-#endif
 	struct rate_limit ralimitup; /* upload (from client) speed limit */
 	struct rate_limit ralimitdown; /* download (to client) speed limit */
 
@@ -437,13 +414,6 @@ struct io_stream_args {
 size_t io_read_data(int fd, void *data, size_t szdata, rh_yesno noretry, size_t *rdd);
 size_t io_write_data(int fd, const void *data, size_t szdata, rh_yesno noretry, size_t *wrd);
 rh_yesno io_stream_file(struct io_stream_args *iosd_params);
-
-#ifdef WITH_TLS
-size_t TLS_send_pending(int fd, struct TLSContext *tlsctx);
-rh_yesno TLS_parsemsg(struct TLSContext *tlsctx, int fd, void *tmp, size_t tsz);
-size_t TLS_read(struct TLSContext *tlsctx, int fd, void *data, size_t szdata);
-size_t TLS_write(struct TLSContext *tlsctx, int fd, const void *data, size_t szdata);
-#endif
 
 void io_socket_timeout(int fd, unsigned long rcvtimeo, unsigned long sndtimeo);
 size_t io_recv_data(struct client_info *clinfo, void *data, size_t szdata, rh_yesno noretry, rh_yesno nosleep);

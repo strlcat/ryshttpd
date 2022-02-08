@@ -629,21 +629,6 @@ _usinit:
 	usfd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (usfd == -1) xerror("error creating unix socket");
 
-	if (bind(usfd, (struct sockaddr *)&usaddr, unl) == -1)
-		xerror("unix socket binding error");
-
-	if (listen(usfd, 128) == -1)
-		xerror("unix socket listening error");
-
-	if (rh_unixsock_mode) {
-		mode_t mode;
-		char *stoi;
-
-		mode = (mode_t)strtoul(rh_unixsock_mode, &stoi, 8);
-		if (!str_empty(stoi)) xexits("wrong socket file mode %s!", rh_unixsock_mode);
-
-		if (lchmod(rh_unixsock_path, mode) == -1) xerror("unix socket chmod failed");
-	}
 	if (rh_unixsock_user && rh_unixsock_group) {
 		uid_t uid;
 		gid_t gid;
@@ -653,8 +638,23 @@ _usinit:
 		gid = gidbyname(rh_unixsock_group);
 		if (gid == NOGID) xexits("unix socket: group %s doesn't exist", rh_unixsock_group);
 
-		if (lchown(rh_unixsock_path, uid, gid) == -1) xerror("unix socket chown failed");
+		if (fchown(usfd, uid, gid) == -1) xerror("unix socket chown failed");
 	}
+	if (rh_unixsock_mode) {
+		mode_t mode;
+		char *stoi;
+
+		mode = (mode_t)strtoul(rh_unixsock_mode, &stoi, 8);
+		if (!str_empty(stoi)) xexits("wrong socket file mode %s!", rh_unixsock_mode);
+
+		if (fchmod(usfd, mode) == -1) xerror("unix socket chmod failed");
+	}
+
+	if (bind(usfd, (struct sockaddr *)&usaddr, unl) == -1)
+		xerror("unix socket binding error");
+
+	if (listen(usfd, 128) == -1)
+		xerror("unix socket listening error");
 
 _initdone:
 

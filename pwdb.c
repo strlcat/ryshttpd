@@ -28,9 +28,6 @@
 
 #include "httpd.h"
 
-#define NOUID ((uid_t)-1)
-#define NOGID ((gid_t)-1)
-
 uid_t uidbyname(const char *name)
 {
 	struct passwd *p;

@@ -35,6 +35,10 @@ char *rh_hostnames;
 char *rh_bindaddr4_s;
 char *rh_bindaddr6_s;
 char *rh_port_s;
+char *rh_unixsock_path;
+char *rh_unixsock_mode;
+char *rh_unixsock_user;
+char *rh_unixsock_group;
 char *rh_ident;
 char *rh_root_dir;
 static char *rh_logfile_fmt;
@@ -106,6 +110,8 @@ static int sv4fd = -1;
 static struct sockaddr_in sv4addr;
 static int sv6fd = -1;
 static struct sockaddr_in6 sv6addr;
+static int usfd = -1;
+static struct sockaddr_un usaddr;
 static fd_set svfds;
 
 static int svlogfd;
@@ -140,8 +146,12 @@ static void manage_clients(int sig);
 static void server_atexit(int status)
 {
 	if (svlogfd != -1) close(svlogfd);
-	close(sv4fd);
+	if (sv4fd != -1) close(sv4fd);
 	if (sv6fd != -1) close(sv6fd);
+	if (usfd != -1) {
+		close(usfd);
+		if (rh_unixsock_path[0] != '@') unlink(rh_unixsock_path);
+	}
 }
 
 static void signal_exit(int sig)
@@ -239,6 +249,7 @@ int main(int argc, char **argv)
 	int c;
 	char *s, *d, *t, *p, *T, *stoi;
 	char *lr_fpath, *lr_path, *lr_name, *lr_args, *lr_mimetype;
+	socklen_t unl;
 
 	svpid = getpid();
 	set_progname(*argv);
@@ -265,10 +276,31 @@ int main(int argc, char **argv)
 	rh_logfmt = rh_strdup(RH_DEFAULT_LOG_FORMAT);
 	rh_list_date_fmt = rh_strdup(LIST_DATE_FMT);
 
-	while ((c = getopt(argc, argv, "hr:4p:l:O:FR:V")) != -1) {
+	while ((c = getopt(argc, argv, "hr:4p:U:l:O:FR:V")) != -1) {
 		switch (c) {
 			case 'r': SETOPT(rh_root_dir, optarg); break;
 			case '4': FLIP_YESNO(ipv4_only); break;
+			case 'U':
+				if (strchr(optarg, ':') && optarg[0] != '@') {
+					pfree(rh_unixsock_path);
+					pfree(rh_unixsock_mode);
+					pfree(rh_unixsock_user);
+					pfree(rh_unixsock_group);
+					T = rh_strdup(optarg);
+					s = d = T; t = NULL;
+					while ((s = strtok_r(d, ":", &t))) {
+						if (d) d = NULL;
+
+						if (!rh_unixsock_path) SETOPT(rh_unixsock_path, s);
+						else if (!rh_unixsock_mode) SETOPT(rh_unixsock_mode, s);
+						else if (!rh_unixsock_user) SETOPT(rh_unixsock_user, s);
+						else if (!rh_unixsock_group) SETOPT(rh_unixsock_group, s);
+						else break;
+					}
+					pfree(T);
+				}
+				else SETOPT(rh_unixsock_path, optarg);
+				break;
 			case 'p': SETOPT(rh_port_s, optarg); break;
 			case 'l': SETOPT(rh_logfile_fmt, optarg); break;
 			case 'F': FLIP_YESNO(no_daemonise); break;
@@ -515,6 +547,9 @@ int main(int argc, char **argv)
 	}
 	else svlogfd = -1;
 
+	/* Unix socket bind only. */
+	if (rh_unixsock_path) goto _usinit;
+
 	/* Admin requested operating only on V4 socket. */
 	if (ipv4_only == YES) goto _v4init;
 
@@ -578,6 +613,51 @@ _v4init:
 	if (listen(sv4fd, 128) == -1)
 		xerror("listening error");
 
+_usinit:
+	if (!rh_unixsock_path) goto _initdone;
+	/* Unix socket init */
+	rh_memzero(&usaddr, sizeof(struct sockaddr_un));
+	usaddr.sun_family = AF_UNIX;
+	if (rh_unixsock_path[0] != '@') unlink(rh_unixsock_path);
+	rh_strlcpy(usaddr.sun_path, rh_unixsock_path, sizeof(usaddr.sun_path));
+	if (rh_unixsock_path[0] == '@') {
+		usaddr.sun_path[0] = '\0';
+		unl = sizeof(usaddr.sun_family) + strlen(rh_unixsock_path);
+	}
+	else unl = sizeof(struct sockaddr_un);
+
+	usfd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (usfd == -1) xerror("error creating unix socket");
+
+	if (bind(usfd, (struct sockaddr *)&usaddr, unl) == -1)
+		xerror("unix socket binding error");
+
+	if (listen(usfd, 128) == -1)
+		xerror("unix socket listening error");
+
+	if (rh_unixsock_mode) {
+		mode_t mode;
+		char *stoi;
+
+		mode = (mode_t)strtoul(rh_unixsock_mode, &stoi, 8);
+		if (!str_empty(stoi)) xexits("wrong socket file mode %s!", rh_unixsock_mode);
+
+		if (lchmod(rh_unixsock_path, mode) == -1) xerror("unix socket chmod failed");
+	}
+	if (rh_unixsock_user && rh_unixsock_group) {
+		uid_t uid;
+		gid_t gid;
+
+		uid = uidbyname(rh_unixsock_user);
+		if (uid == NOUID) xexits("unix socket: user %s doesn't exist", rh_unixsock_user);
+		gid = gidbyname(rh_unixsock_group);
+		if (gid == NOGID) xexits("unix socket: group %s doesn't exist", rh_unixsock_group);
+
+		if (lchown(rh_unixsock_path, uid, gid) == -1) xerror("unix socket chown failed");
+	}
+
+_initdone:
+
 	if (!no_daemonise) do_daemonise();
 	svpid = getpid();
 
@@ -611,9 +691,15 @@ _v4init:
 		FD_ZERO(&svfds);
 		maxfd = -1;
 
-		/* V4 server is required, so it's always there. */
-		FD_SET(sv4fd, &svfds);
-		if (sv4fd > maxfd) maxfd = sv4fd;
+		/* V4 server is required, so it's always there, unless there is a UNIX socket. */
+		if (usfd == -1) {
+			FD_SET(sv4fd, &svfds);
+			if (sv4fd > maxfd) maxfd = sv4fd;
+		}
+		else {
+			FD_SET(usfd, &svfds);
+			if (usfd > maxfd) maxfd = usfd;
+		}
 		/* V6 server is optional. */
 		if (sv6fd != -1) {
 			FD_SET(sv6fd, &svfds);
@@ -631,8 +717,38 @@ _sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
 			xerror("selecting listening fds");
 		}
 
+		/* Accepting new UNIX connection */
+		if (usfd != -1 && FD_ISSET(usfd, &svfds)) {
+			socklen_t ucrl;
+
+			/* Accepted UNIX connection - mark as such */
+			clinfo->af = AF_UNIX;
+
+			/* Preallocate things for accept call */
+			clinfo->sockaddrlen = sizeof(struct sockaddr_un);
+			clinfo->sockaddr = rh_malloc(sizeof(struct sockaddr_un));
+
+			/* Fill server port number */
+			clinfo->servport = rh_strdup(rh_unixsock_path);
+
+			/* Accept connection fd */
+			clinfo->clfd = accept(usfd,
+				(struct sockaddr *)clinfo->sockaddr, &clinfo->sockaddrlen);
+			if (clinfo->clfd == -1) {
+				rh_perror("unix socket accepting error");
+				goto _drop_client;
+			}
+
+			/* Resolve basic peer credentials */
+			clinfo->ucr = rh_malloc(sizeof(struct ucred));
+			ucrl = sizeof(struct ucred);
+			if (getsockopt(clinfo->clfd, SOL_SOCKET, SO_PEERCRED, clinfo->ucr, &ucrl) == -1) {
+				rh_perror("getting unix socket peer credentials error");
+				goto _drop_client;
+			}
+		}
 		/* Accepting new V4 connection */
-		if (FD_ISSET(sv4fd, &svfds)) {
+		else if (sv4fd != -1 && FD_ISSET(sv4fd, &svfds)) {
 			/* Accepted V4 connection - mark as such */
 			clinfo->af = AF_INET;
 
@@ -681,10 +797,14 @@ _sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
 		clinfo->sockaddr = rh_realloc(clinfo->sockaddr, clinfo->sockaddrlen);
 
 		/* resolving numbers must be fast */
-		resolve_ip(clinfo->af, clinfo->sockaddr,
-			clinfo->sockaddrlen, &clinfo->ipaddr);
-		resolve_port(clinfo->af, clinfo->sockaddr,
-			clinfo->sockaddrlen, &clinfo->port);
+		if (!resolve_ip(&clinfo->ipaddr, clinfo)) {
+			rh_esay("trouble resolving client address: %s", clinfo->ipaddr);
+			goto _drop_client;
+		}
+		if (!resolve_port(&clinfo->port, clinfo)) {
+			rh_esay("trouble resolving client port: %s", clinfo->port);
+			goto _drop_client;
+		}
 
 		/* set socket timeouts */
 		io_socket_timeout(clinfo->clfd, rh_client_receive_timeout, rh_client_send_timeout);
@@ -768,8 +888,9 @@ _tryssrd:			if (setsockopt(logpipe[0], SOL_SOCKET, SO_RCVBUF,
 		}
 
 		if (pid == 0) {
-			close(sv4fd);
+			if (sv4fd != -1) close(sv4fd);
 			if (sv6fd != -1) close(sv6fd);
+			if (usfd != -1) close(usfd);
 			clinfo->pid = getpid();
 			if (svlogfd != -1) {
 				pfree(svlogln);

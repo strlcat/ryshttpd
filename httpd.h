@@ -40,6 +40,9 @@
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 700
 #endif
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
 #endif
@@ -62,6 +65,7 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/select.h>
 #include <poll.h>
 #include <netinet/in.h>
@@ -129,6 +133,7 @@ extern char *rh_hostnames;
 extern char *rh_bindaddr4_s;
 extern char *rh_bindaddr6_s;
 extern char *rh_port_s;
+extern char *rh_unixsock_path;
 extern char *rh_ident;
 extern char *rh_root_dir;
 extern char *rh_logfile;
@@ -212,6 +217,7 @@ struct client_info {
 
 	/* Networking devices and information */
 	int af; /* address family */
+	struct ucred *ucr; /* if af == AF_UNIX, this is set to resolved peer creds */
 	void *sockaddr; /* raw accept'ed client sockaddr struct corresponding to family */
 	socklen_t sockaddrlen; /* length of sockaddr structure */
 	char *ipaddr; /* resolved numeric ip address */
@@ -363,6 +369,9 @@ char *getsdate(time_t t, const char *fmt, rh_yesno gmt);
 time_t getdatetime_r(char *date, size_t szdate, const char *fmt);
 time_t getdatetime(char **date, const char *fmt);
 
+#define NOUID ((uid_t)-1)
+#define NOGID ((gid_t)-1)
+
 uid_t uidbyname(const char *name);
 gid_t gidbyuid(uid_t uid);
 gid_t gidbyname(const char *name);
@@ -420,8 +429,8 @@ size_t io_recv_data(struct client_info *clinfo, void *data, size_t szdata, rh_ye
 size_t io_send_data(struct client_info *clinfo, const void *data, size_t szdata, rh_yesno noretry, rh_yesno nosleep);
 
 char *getmyhostname(void);
-rh_yesno resolve_ip(int af, const void *sockaddr, socklen_t sockaddrlen, char **ipaddr);
-rh_yesno resolve_port(int af, const void *sockaddr, socklen_t sockaddrlen, char **port);
+rh_yesno resolve_ip(char **ipaddr, const struct client_info *cli);
+rh_yesno resolve_port(char **port, const struct client_info *cli);
 
 #ifdef WITH_LIBMAGIC
 rh_yesno init_magic_db(void);

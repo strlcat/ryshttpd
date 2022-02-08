@@ -39,13 +39,22 @@ char *getmyhostname(void)
 	return r;
 }
 
-rh_yesno resolve_ip(int af, const void *sockaddr, socklen_t sockaddrlen, char **ipaddr)
+rh_yesno resolve_ip(char **ipaddr, const struct client_info *cli)
 {
 	int x;
 	char *r;
 
+	if (cli->af == AF_UNIX) {
+		struct ucred *pucr = cli->ucr;
+
+		r = NULL;
+		rh_asprintf(&r, "%s:%lu.%lu", rh_unixsock_path, (unsigned long)pucr->uid, (unsigned long)pucr->gid);
+		*ipaddr = r;
+		return YES;
+	}
+
 	r = rh_malloc(NI_MAXHOST);
-	x = getnameinfo(sockaddr, sockaddrlen,
+	x = getnameinfo(cli->sockaddr, cli->sockaddrlen,
 		r, NI_MAXHOST, NULL, 0,
 		NI_NUMERICHOST | NI_NUMERICSERV);
 	if (x) goto _failed;
@@ -62,39 +71,22 @@ _failed:
 	return NO;
 }
 
-#if 0
-/* unused */
-rh_yesno resolve_hostname(int af, const void *sockaddr, socklen_t sockaddrlen, char **hostname)
+rh_yesno resolve_port(char **port, const struct client_info *cli)
 {
 	int x;
 	char *r;
 
-	r = rh_malloc(NI_MAXHOST);
-	x = getnameinfo(sockaddr, sockaddrlen,
-		r, NI_MAXHOST, NULL, 0,
-		NI_NUMERICSERV);
-	if (x) goto _failed;
-	shrink_dynstr(&r);
+	if (cli->af == AF_UNIX) {
+		struct ucred *pucr = cli->ucr;
 
-	*hostname = r;
-	return YES;
-
-_failed:
-	rh_asprintf(&r, "%s", gai_strerror(x));
-	shrink_dynstr(&r);
-
-	*hostname = r;
-	return NO;
-}
-#endif
-
-rh_yesno resolve_port(int af, const void *sockaddr, socklen_t sockaddrlen, char **port)
-{
-	int x;
-	char *r;
+		r = NULL;
+		rh_asprintf(&r, "%lu", (unsigned long)pucr->pid);
+		*port = r;
+		return YES;
+	}
 
 	r = rh_malloc(NI_MAXSERV);
-	x = getnameinfo(sockaddr, sockaddrlen,
+	x = getnameinfo(cli->sockaddr, cli->sockaddrlen,
 		NULL, 0, r, NI_MAXSERV,
 		NI_NUMERICHOST | NI_NUMERICSERV);
 	if (x) goto _failed;

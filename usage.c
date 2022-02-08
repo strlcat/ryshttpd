@@ -32,11 +32,18 @@ void usage(void)
 {
 	rh_say(PROGRAM_NAME " is an embedded HTTP server.");
 	rh_say("usage: %s <-r httproot> "
-		"[-4FV] [-R resdef] [-p port] [-l logfile] [-O OPTION,...]", progname);
+		"[-4FV] [-U path[:mode[:uid:gid]]] [-R resdef] [-p port] [-l logfile] [-O OPTION,...]", progname);
 	rh_say("\n");
 	rh_say("  -r httproot: (mandatory) specify http root directory to serve files from");
 	rh_say("  -p port: specify alternative port number to bind to");
 	rh_say("  -4: use only IPv4, never try to use IPv6");
+	rh_say("  -U path[:mode[:uid:gid]]: listen only on UNIX socket specified by path");
+	rh_say("    Networking options like port number and bind address are completely ignored.");
+	rh_say("    Optional socket configuration \"mode\" sets Unix octal socket file mode,");
+	rh_say("      and if followed by \"uid\" and \"gid\", sets socket file ownership.");
+	rh_say("      Note that some of these operations might require sufficient privilege.");
+	rh_say("    If socket \"path\" starts with '@' char, then abstract socket will be created,");
+	rh_say("      and \"mode\", \"uid\" and \"gid\" parameters will be ignored.");
 	rh_say("  -F: do not daemonise, stay in foreground (to see error messages)");
 	rh_say("  -l logfile: enable logging to logfile (default is to never log anything)\n"
 		"    It accepts strftime format, so filename may include current date\n"

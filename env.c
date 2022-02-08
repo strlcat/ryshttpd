@@ -50,6 +50,7 @@ void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_st
 	APPEND_FSA(tfsa, nr_tfsa, "bindaddr4", 0, "%s", rh_bindaddr4_s);
 	APPEND_FSA(tfsa, nr_tfsa, "bindaddr6", 0, "%s", rh_bindaddr6_s);
 	APPEND_FSA(tfsa, nr_tfsa, "bindport", 0, "%s", rh_port_s);
+	APPEND_FSA(tfsa, nr_tfsa, "bindunix", 0, "%s", rh_unixsock_path);
 	APPEND_FSA(tfsa, nr_tfsa, "httpident", 0, "%s", rh_ident);
 	APPEND_FSA(tfsa, nr_tfsa, "httproot", 0, "%s", clstate->httproot);
 	APPEND_FSA(tfsa, nr_tfsa, "logfile", 0, "%s", rh_logfile);

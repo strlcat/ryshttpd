@@ -309,7 +309,7 @@ _trim:		*d = 0; d++;
 	boundarylen = rh_szalloc(boundary)-1;
 	if (boundarylen == NOSIZE) xexits("malformed boundary");
 
-	sz = (size_t)read(0, rdwr_data, RDWR_BUFSIZE);
+	sz = xread(0, rdwr_data, RDWR_BUFSIZE);
 	if (sz == 0 || sz == NOSIZE) xexits("read was too small");
 
 	s = rdwr_data;
@@ -425,7 +425,7 @@ _found_filename:
 
 	if (filehead) {
 		x = rh_szalloc(filehead);
-		write(fd, filehead, x);
+		xwrite(fd, filehead, x);
 		file_written_already += x;
 		pfree(filehead);
 		if (file_written_already >= resolved_file_size) goto _donealready;

@@ -33,6 +33,30 @@
 
 #include "httpd.h"
 
+size_t xread(int fd, void *data, size_t szdata)
+{
+	size_t x;
+
+	do {
+		errno = 0;
+		x = (size_t)read(fd, data, szdata);
+	} while (x == NOSIZE && errno == EINTR);
+
+	return x;
+}
+
+size_t xwrite(int fd, const void *data, size_t szdata)
+{
+	size_t x;
+
+	do {
+		errno = 0;
+		x = (size_t)write(fd, data, szdata);
+	} while (x == NOSIZE && errno == EINTR);
+
+	return x;
+}
+
 rh_fsize rh_fdsize(int fd)
 {
 	off_t l, cur;
@@ -56,7 +80,7 @@ size_t io_read_data(int fd, void *data, size_t szdata, rh_yesno noretry, size_t 
 	lr = szdata;
 	ld = 0;
 _ragain:
-	li = (size_t)read(fd, pblk, lr);
+	li = xread(fd, pblk, lr);
 	if (li == 0) {
 		if (rdd) *rdd = ld;
 		return ld;
@@ -83,7 +107,7 @@ size_t io_write_data(int fd, const void *data, size_t szdata, rh_yesno noretry, 
 	lr = szdata;
 	ld = 0;
 _wagain:
-	li = (size_t)write(fd, pblk, lr);
+	li = xwrite(fd, pblk, lr);
 	if (li == NOSIZE) return NOSIZE;
 	ld += li;
 	if (wrd) *wrd = ld;

@@ -101,11 +101,11 @@ _write:
 	if (sz < 2 || sz == NOSIZE) xexits("logline too short");
 	logline[sz-1] = '\n'; /* do not use logline as C str after this line!! */
 
-	x = write(cli->logfd, logline, sz);
-	if (x == -1) {
+	x = xwrite(cli->logfd, logline, sz);
+	if (x == NOSIZE) {
 		int sve = errno;
 
-		write(1, logline, sz);
+		xwrite(1, logline, sz);
 		errno = sve;
 		xerror("writing log line");
 	}

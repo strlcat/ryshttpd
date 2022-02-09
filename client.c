@@ -1613,7 +1613,7 @@ _cgiserver:		tenvp = NULL;
 							goto _xclerr;
 						}
 						err = execle(sh, "sh", clstate->realpath, NULL, tenvp);
-_xclerr:					write(epfd[1], &errno, sizeof(errno));
+_xclerr:					xwrite(epfd[1], &errno, sizeof(errno));
 					}
 					close(epfd[1]);
 					rh_exit(127);
@@ -1622,7 +1622,7 @@ _xclerr:					write(epfd[1], &errno, sizeof(errno));
 					close(epfd[1]);
 					signal(SIGCHLD, SIG_DFL);
 					err = 0;
-					while (read(epfd[0], &err, sizeof(errno)) != -1)
+					while (xread(epfd[0], &err, sizeof(errno)) != NOSIZE)
 						if (errno != EAGAIN && errno != EINTR) break;
 					close(epfd[0]);
 					if (err) {

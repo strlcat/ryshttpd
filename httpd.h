@@ -420,6 +420,8 @@ struct io_stream_args {
 	int status; /* IOS_* flag of io request */
 };
 
+size_t xread(int fd, void *data, size_t szdata);
+size_t xwrite(int fd, const void *data, size_t szdata);
 size_t io_read_data(int fd, void *data, size_t szdata, rh_yesno noretry, size_t *rdd);
 size_t io_write_data(int fd, const void *data, size_t szdata, rh_yesno noretry, size_t *wrd);
 rh_yesno io_stream_file(struct io_stream_args *iosd_params);

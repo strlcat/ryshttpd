@@ -32,15 +32,19 @@ void block_signals(rh_yesno block, ...)
 {
 	sigset_t ns;
 	size_t x, z;
-	va_list ap;
+	va_list ap, t;
 
 	va_start(ap, block);
-	for (z = 0; va_arg(ap, int) > 0; z++);
-	va_end(ap);
+
+	va_copy(t, ap);
+	for (z = 0; va_arg(t, int) > 0; z++);
+	va_end(t);
 
 	sigemptyset(&ns);
-	va_start(ap, block);
-	for (x = 0; x < z; x++) sigaddset(&ns, va_arg(ap, int));
-	va_end(ap);
+	va_copy(t, ap);
+	for (x = 0; x < z; x++) sigaddset(&ns, va_arg(t, int));
+	va_end(t);
 	sigprocmask(block == YES ? SIG_BLOCK : SIG_UNBLOCK, &ns, NULL);
+
+	va_end(ap);
 }

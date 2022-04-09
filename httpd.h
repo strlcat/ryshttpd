@@ -66,7 +66,6 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <sys/select.h>
 #include <poll.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

@@ -112,7 +112,7 @@ static int sv6fd = -1;
 static struct sockaddr_in6 sv6addr;
 static int usfd = -1;
 static struct sockaddr_un usaddr;
-static fd_set svfds;
+static struct pollfd svfds[3];
 
 static int svlogfd;
 static void *svlogln;
@@ -684,26 +684,32 @@ _initdone:
 
 	while (1) {
 		struct client_info *clinfo;
-		int maxfd, logpipe[2];
+		int fdcnt = 0, fdgot, logpipe[2];
 		pid_t pid;
 
-		/* Listen to any server fds we have, even if just one. */
-		FD_ZERO(&svfds);
-		maxfd = -1;
+		rh_memzero(&svfds, sizeof(svfds));
+		for (fdcnt = 0; fdcnt < STAT_ARRAY_SZ(svfds); fdcnt++) svfds[fdcnt].fd = -1;
+		fdcnt = 0;
 
 		/* V4 server is required, so it's always there, unless there is a UNIX socket. */
 		if (usfd == -1) {
-			FD_SET(sv4fd, &svfds);
-			if (sv4fd > maxfd) maxfd = sv4fd;
+			if (fdcnt > STAT_ARRAY_SZ(svfds)-1) goto _plerr;
+			svfds[fdcnt].fd = sv4fd;
+			svfds[fdcnt].events = POLLIN;
+			fdcnt++;
 		}
 		else {
-			FD_SET(usfd, &svfds);
-			if (usfd > maxfd) maxfd = usfd;
+			if (fdcnt > STAT_ARRAY_SZ(svfds)-1) goto _plerr;
+			svfds[fdcnt].fd = usfd;
+			svfds[fdcnt].events = POLLIN;
+			fdcnt++;
 		}
 		/* V6 server is optional. */
 		if (sv6fd != -1) {
-			FD_SET(sv6fd, &svfds);
-			if (sv6fd > maxfd) maxfd = sv6fd;
+			if (fdcnt > STAT_ARRAY_SZ(svfds)-1) goto _plerr;
+			svfds[fdcnt].fd = sv6fd;
+			svfds[fdcnt].events = POLLIN;
+			fdcnt++;
 		}
 
 		/* Prepare client info structure */
@@ -712,13 +718,24 @@ _initdone:
 		clinfo->ralimitdown.total = ratelimit_down;
 
 		/* Listening on multiple servers */
-_sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
-			if (errno == EINTR || errno == EAGAIN) goto _sagain;
-			xerror("selecting listening fds");
+_plagain:	if (poll(svfds, fdcnt, -1) == -1) {
+			if (errno == EINTR || errno == EAGAIN) goto _plagain;
+_plerr:			xerror("polling listening fds");
+		}
+
+		fdgot = -1;
+		for (fdcnt = 0; fdcnt < STAT_ARRAY_SZ(svfds); fdcnt++) {
+			if (!(svfds[fdcnt].revents & POLLIN)) continue;
+			fdgot = svfds[fdcnt].fd;
+			break;
+		}
+		if (fdgot == -1) {
+			rh_esay("no usable fd was returned by poll!");
+			goto _drop_client;
 		}
 
 		/* Accepting new UNIX connection */
-		if (usfd != -1 && FD_ISSET(usfd, &svfds)) {
+		if (usfd != -1 && usfd == fdgot) {
 			socklen_t ucrl;
 
 			/* Accepted UNIX connection - mark as such */
@@ -748,7 +765,7 @@ _sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
 			}
 		}
 		/* Accepting new V4 connection */
-		else if (sv4fd != -1 && FD_ISSET(sv4fd, &svfds)) {
+		else if (sv4fd != -1 && sv4fd == fdgot) {
 			/* Accepted V4 connection - mark as such */
 			clinfo->af = AF_INET;
 
@@ -768,7 +785,7 @@ _sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
 			}
 		}
 		/* Accepting new V6 connection */
-		else if (sv6fd != -1 && FD_ISSET(sv6fd, &svfds)) {
+		else if (sv6fd != -1 && sv6fd == fdgot) {
 			/* Accepted V6 connection - mark as such */
 			clinfo->af = AF_INET6;
 
@@ -787,11 +804,7 @@ _sagain:	if (select(maxfd+1, &svfds, NULL, NULL, NULL) == -1) {
 				goto _drop_client;
 			}
 		}
-		/* Something weird happened. */
-		else {
-			rh_perror("select returned no fds!");
-			goto _drop_client;
-		}
+		else goto _drop_client;
 
 		/* Trim unused memory */
 		clinfo->sockaddr = rh_realloc(clinfo->sockaddr, clinfo->sockaddrlen);

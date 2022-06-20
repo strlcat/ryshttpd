@@ -537,6 +537,7 @@ struct client_state {
 	char *request; /* usually path. Can contain arguments (after '?'). */
 	char *protoversion; /* http protocol version requested, for response */
 	char *path; /* urldecoded, filtered path of interest, free of any args */
+	char *requri; /* same as path, but saved early after security filtering */
 	char *strargs; /* only arguments without leading '?', if any.
 		filtered off insecure paths. */
 	struct http_arg *args; /* parsed arguments above */

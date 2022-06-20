@@ -1144,6 +1144,9 @@ _malformed:
 		goto _done;
 	}
 
+	/* save request uri, cgi will want this */
+	clstate->requri = rh_strdup(clstate->path);
+
 	/* just save client headers, header query system will reuse them. */
 	clstate->headers = parse_headers(clstate->request_lines, 1, 0);
 
@@ -1465,7 +1468,8 @@ _cgiserver:		tenvp = NULL;
 			cgisetenv(t, "%s=%s", "SERVER_SOFTWARE", rh_ident);
 			cgisetenv(t, "%s=%s", "GATEWAY_INTERFACE", "CGI/1.1");
 
-			if (rh_hostnames) d = rh_strdup(rh_hostnames);
+			s = client_header("Host");
+			if (s) d = rh_strdup(s);
 			else d = getmyhostname();
 			cgisetenv(t, "%s=%s", "SERVER_NAME", d ? d : "");
 			pfree(d);
@@ -1494,6 +1498,7 @@ _cgiserver:		tenvp = NULL;
 			pfree(d);
 
 			cgisetenv(t, "%s=%s", "REQUEST_LINE", clstate->request_lines[0]);
+			cgisetenv(t, "%s=%s", "REQUEST_URI", clstate->requri);
 
 			switch (clstate->method) {
 				case REQ_METHOD_GET: d = "GET"; break;
@@ -1506,6 +1511,12 @@ _cgiserver:		tenvp = NULL;
 			cgisetenv(t, "%s=%s", "PATH_INFO", clstate->path);
 			cgisetenv(t, "%s=%s", "SCRIPT_NAME", clstate->path);
 			cgisetenv(t, "%s=%s", "PATH_TRANSLATED", clstate->realpath);
+
+			d = rh_strdup(clstate->realpath);
+			rh_strlrep(d, rh_szalloc(d), clstate->httproot, "");
+			cgisetenv(t, "%s=%s", "SCRIPT_FILENAME", d);
+			pfree(d);
+
 			cgisetenv(t, "%s=%s", "CLIENT_LINE_ENDINGS",
 				clstate->is_crlf == YES ? "CRLF" : "LF");
 

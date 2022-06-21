@@ -392,6 +392,7 @@ rh_fsize rh_str_fsize(const char *s, char **stoi);
 size_t rh_str_size(const char *s, char **stoi);
 long rh_str_long(const char *s, char **stoi);
 int rh_str_int(const char *s, char **stoi);
+unsigned rh_str_uint(const char *s, char **stoi);
 char *rh_human_fsize(rh_fsize fsize);
 rh_fsize rh_str_human_fsize(const char *s, char **stoi);
 
@@ -492,15 +493,15 @@ struct http_arg {
 };
 
 struct response_status {
-	int status; /* integer http status code, e.g. 404 */
+	unsigned status; /* integer http status code, e.g. 404 */
 	const char *response; /* textual line to be sent, e.g. "404 Not Found".
 		Also this status code is displayed on a error page. */
 };
 
 void response_chunk_length(struct client_state *clstate, size_t length);
 void response_chunk_end(struct client_state *clstate);
-void response_error(struct client_state *clstate, int status);
-void response_ok(struct client_state *clstate, int status, rh_yesno end_head);
+void response_error(struct client_state *clstate, unsigned status);
+void response_ok(struct client_state *clstate, unsigned status, rh_yesno end_head);
 size_t response_recv_data(struct client_state *clstate, void *data, size_t szdata);
 void response_send_data(struct client_state *clstate, const void *data, size_t szdata);
 
@@ -568,6 +569,9 @@ struct client_state {
 	rh_yesno allow_tar; /* allow to take a whole tar archive of this directory */
 	void *hideindex_rgx; /* htaccess "hideindex" regex matching data */
 	char *prevpath; /* saved previous path in case of directory listing */
+
+	/* Is response sent already? */
+	rh_yesno sent_response_already;
 
 	/* Response status */
 	char *status;

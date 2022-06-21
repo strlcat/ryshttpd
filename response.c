@@ -167,7 +167,7 @@ void response_chunk_end(struct client_state *clstate)
 	else clstate->sentbytes += sz;
 }
 
-void response_error(struct client_state *clstate, int status)
+void response_error(struct client_state *clstate, unsigned status)
 {
 	struct client_info *cli = clstate->clinfo;
 	const struct response_status *rsp;
@@ -178,6 +178,8 @@ void response_error(struct client_state *clstate, int status)
 	struct fmtstr_state fst;
 	char *s = NULL, *errdata = NULL;
 	void *rspdata = NULL;
+
+	if (clstate->sent_response_already == YES) return;
 
 	rsp = find_response(status);
 	if (!rsp) rsp = find_response(500);
@@ -284,16 +286,21 @@ _send:	/* Send the response */
 	if (io_send_data(cli, rspdata, rh_szalloc(rspdata), NO, YES) == NOSIZE)
 		io_set_error(clstate, IOS_WRITE_ERROR);
 
+	/* Response is sent to wire, cannot send another! */
+	clstate->sent_response_already = YES;
+
 	pfree(rspdata);
 	pfree(errdata);
 	if (drsrc) free_resource(drsrc);
 }
 
-void response_ok(struct client_state *clstate, int status, rh_yesno end_head)
+void response_ok(struct client_state *clstate, unsigned status, rh_yesno end_head)
 {
 	struct client_info *cli = clstate->clinfo;
 	const struct response_status *rsp;
 	void *rspdata = NULL;
+
+	if (clstate->sent_response_already == YES) return;
 
 	rsp = find_response(status);
 	if (!rsp) {
@@ -325,6 +332,9 @@ void response_ok(struct client_state *clstate, int status, rh_yesno end_head)
 	/* Send the response */
 	if (io_send_data(cli, rspdata, rh_szalloc(rspdata), NO, YES) == NOSIZE)
 		io_set_error(clstate, IOS_WRITE_ERROR);
+
+	/* Response is sent to wire, cannot send another! */
+	clstate->sent_response_already = YES;
 
 	pfree(rspdata);
 }

@@ -303,6 +303,7 @@ static void reset_client_state(struct client_state *clstate)
 	pfree(clstate->request);
 	pfree(clstate->protoversion);
 	pfree(clstate->path);
+	pfree(clstate->requri);
 	pfree(clstate->strargs);
 
 	pfree(clstate->args);
@@ -340,6 +341,7 @@ static void reset_client_state(struct client_state *clstate)
 	}
 	pfree(clstate->prevpath);
 
+	clstate->sent_response_already = NO;
 	pfree(clstate->status);
 
 	pfree(clstate->altlogline);
@@ -356,16 +358,16 @@ static rh_yesno match_exec_pattern(const void *rgx, const char *root, const char
 _ret:	return regex_exec(rgx, path);
 }
 
-static void catch_status_code(struct client_state *clstate, const void *rdata, size_t rsz)
+static size_t catch_cgi_status_code(struct client_state *clstate, unsigned *stt, const void *rdata, size_t rsz)
 {
 	char t[4];
-	const char *s;
+	const char *us, *s, *d;
 	size_t x;
 
 	/* If already set, then do nothing! */
-	if (clstate->status) return;
+	if (clstate->status) return 0;
 
-	s = rdata;
+	s = us = rdata;
 	/* should be at beginning - the very first line of CGI answer */
 	if (!strncmp(s, "HTTP/", CSTR_SZ("HTTP/"))) {
 		s += CSTR_SZ("HTTP/");
@@ -373,9 +375,23 @@ static void catch_status_code(struct client_state *clstate, const void *rdata, s
 		if (!strncmp(clstate->protoversion, s, x) && s[x] == ' ') {
 			s += x+1;
 			rh_strlcpy_real(t, s, sizeof(t));
-			if (is_number(t, NO) == YES) clstate->status = rh_strdup(t);
+			if (is_number(t, NO) == YES) {
+				*stt = rh_str_uint(t, NULL);
+				pfree(clstate->status);
+				clstate->status = rh_strdup(t);
+			}
+			x = clstate->is_crlf == YES ? CSTR_SZ("\r\n") : CSTR_SZ("\n");
+			d = rh_memmem(us, rsz,
+			clstate->is_crlf == YES ? "\r\n" : "\n", x);
+			if (d) s = d+x;
+			goto _done;
 		}
 	}
+
+	*stt = 200;
+	rh_asprintf(&clstate->status, "200");
+
+_done:	return s-us;
 }
 
 static void force_timeout_exit(int sig)
@@ -887,7 +903,7 @@ _closeret:
 
 void run_client(struct client_info *clinfo)
 {
-	size_t x, sz;
+	size_t x, sz, n;
 	char *s, *d, *t;
 	const struct embedded_resource *rsrc;
 	struct embedded_resource *drsrc;
@@ -1688,8 +1704,9 @@ _pollagain:					if (poll(polldf, 1, -1) == -1) {
 						 */
 						clstate->is_keepalive = NO;
 						delete_header(&clstate->sendheaders, "Keep-Alive");
-						response_ok(clstate, 200,
-							(clstate->cgi_mode == CGI_MODE_REGULAR) ? YES : NO);
+						/* Do not send response early but wait for CGI one first */
+						if (clstate->cgi_mode == CGI_MODE_REGULAR)
+							response_ok(clstate, 200, YES);
 					}
 
 					rh_memzero(polldf, sizeof(polldf));
@@ -1698,6 +1715,8 @@ _pollagain:					if (poll(polldf, 1, -1) == -1) {
 					polldf[1].fd = fpfd[0];
 					polldf[1].events = POLLIN;
 					while (1) {
+						char *wbp;
+
 						if (poll(polldf, 2, -1) == -1) {
 							if (errno == EINTR) continue;
 							break;
@@ -1717,12 +1736,22 @@ _pollagain:					if (poll(polldf, 1, -1) == -1) {
 							x = io_read_data(fpfd[0],
 							clstate->workbuf, clstate->wkbufsz, YES, NULL);
 							if (x == 0 || x == NOSIZE) break;
-							if (clstate->cgi_mode == CGI_MODE_NOHEADS) {
-								catch_status_code(clstate,
-								clstate->workbuf, x);
+							wbp = clstate->workbuf; n = 0;
+							if (clstate->cgi_mode == CGI_MODE_ENDHEAD) {
+								unsigned st = 200;
+
+								/*
+								 * If CGI server provided it's own HTTP response, then catch it,
+								 * and don't expose original to clients. Anyway, if you need
+								 * your own CGI service, you'll go with CGI_MODE_NOHEADS.
+								 * This is quite hacky, but shall work.
+								 */
+								n = catch_cgi_status_code(clstate, &st, clstate->workbuf, x);
+								/* As early as possible send response beginning */
+								if (clstate->sent_response_already == NO)
+									response_ok(clstate, st, NO);
 							}
-							response_send_data(clstate,
-							clstate->workbuf, x);
+							response_send_data(clstate, wbp+n, x-n);
 						}
 					}
 					close(fpfd[0]);

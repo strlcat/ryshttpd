@@ -30,26 +30,32 @@
 
 rh_fsize rh_str_fsize(const char *s, char **stoi)
 {
-	*stoi = NULL;
+	if (stoi) *stoi = NULL;
 	return (rh_fsize)strtoull(s, stoi, 10);
 }
 
 size_t rh_str_size(const char *s, char **stoi)
 {
-	*stoi = NULL;
+	if (stoi) *stoi = NULL;
 	return (size_t)strtoull(s, stoi, 10);
 }
 
 long rh_str_long(const char *s, char **stoi)
 {
-	*stoi = NULL;
-	return strtoul(s, stoi, 10);
+	if (stoi) *stoi = NULL;
+	return strtol(s, stoi, 10);
 }
 
 int rh_str_int(const char *s, char **stoi)
 {
-	*stoi = NULL;
-	return (int)strtoul(s, stoi, 10);
+	if (stoi) *stoi = NULL;
+	return (int)strtol(s, stoi, 10);
+}
+
+unsigned rh_str_uint(const char *s, char **stoi)
+{
+	if (stoi) *stoi = NULL;
+	return (unsigned)strtoul(s, stoi, 10);
 }
 
 static const char *size_scale[] = {"", "K", "M", "G", "T", "P"};
@@ -110,7 +116,7 @@ rh_fsize rh_str_human_fsize(const char *s, char **stoi)
 	pfx[0] = *(N+l-1);
 	if (!is_number(pfx, NO)) *(N+l-1) = 0;
 
-	*stoi = NULL;
+	if (stoi) *stoi = NULL;
 	if (is_number(pfx, NO) || *pfx == 'B' || *pfx == 'c') r = strtoull(N, stoi, 10);
 	else if (*pfx == 'k' || *pfx == 'K') r = strtoull(N, stoi, 10)*1024;
 	else if (*pfx == 'm' || *pfx == 'M') r = strtoull(N, stoi, 10)*1024*1024;

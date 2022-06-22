@@ -399,11 +399,13 @@ static size_t catch_cgi_status_code(struct client_state *clstate, unsigned *stt,
 	const char *us, *s, *d;
 	size_t x;
 
+	/* Lines matched should be at beginning - the very first line of CGI answer */
+
 	/* If already set, then do nothing! */
 	if (clstate->status) return 0;
 
+	/* Match "HTTP/1.1 404 Not Found" style line */
 	s = us = rdata;
-	/* should be at beginning - the very first line of CGI answer */
 	if (!strncmp(s, "HTTP/", CSTR_SZ("HTTP/"))) {
 		s += CSTR_SZ("HTTP/");
 		x = strnlen(clstate->protoversion, RH_ALLOC_MAX);
@@ -423,6 +425,24 @@ static size_t catch_cgi_status_code(struct client_state *clstate, unsigned *stt,
 		}
 	}
 
+	/* Match custom "Status: 404 Not Found" pseudoheader used by werc for example */
+	s = us = rdata;
+	if (!strncmp(s, "Status: ", CSTR_SZ("Status: "))) {
+		s += CSTR_SZ("Status: ");
+		rh_strlcpy_real(t, s, sizeof(t));
+		if (is_number(t, NO) == YES) {
+			*stt = rh_str_uint(t, NULL);
+			pfree(clstate->status);
+			clstate->status = rh_strdup(t);
+		}
+		x = clstate->is_crlf == YES ? CSTR_SZ("\r\n") : CSTR_SZ("\n");
+		d = rh_memmem(us, rsz,
+		clstate->is_crlf == YES ? "\r\n" : "\n", x);
+		if (d) s = d+x;
+		goto _done;
+	}
+
+	/* No header matched - continue as successful */
 	*stt = 200;
 	rh_asprintf(&clstate->status, "200");
 

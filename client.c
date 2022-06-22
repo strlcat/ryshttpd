@@ -358,6 +358,41 @@ static rh_yesno match_exec_pattern(const void *rgx, const char *root, const char
 _ret:	return regex_exec(rgx, path);
 }
 
+static rh_yesno is_status_line(const void *rdata, size_t rsz)
+{
+	const char *us, *s;
+	char *S;
+	char tp[RH_ALLOC_SMALL];
+
+	us = rdata;
+	s = rh_memmem(us, rsz, "\r\n", CSTR_SZ("\r\n"));
+	if (!s) s = rh_memmem(us, rsz, "\n", CSTR_SZ("\n"));
+	if (!s) return NO;
+
+	rh_strlcpy_real(tp, us, s-us+1 > sizeof(tp) ? sizeof(tp) : s-us+1);
+	S = tp;
+	if (!strncmp(S, "HTTP/", CSTR_SZ("HTTP/"))) {
+		S += CSTR_SZ("HTTP/");
+		if (!strncmp(S, "0.9 ", CSTR_SZ("0.9 "))
+		|| !strncmp(S, "1.0 ", CSTR_SZ("1.0 "))
+		|| !strncmp(S, "1.1 ", CSTR_SZ("1.1 "))) {
+			S += CSTR_SZ("1.1 ");
+			S[CSTR_SZ("200")] = 0;
+			if (is_number(S, NO) == YES) {
+				unsigned stt = rh_str_uint(S, NULL);
+
+				s = find_response_string(stt);
+				if (!s) return NO;
+				S += CSTR_SZ("200 ");
+				s += CSTR_SZ("200 ");
+				if (!strcmp(S, s)) return YES;
+			}
+		}
+	}
+
+	return NO;
+}
+
 static size_t catch_cgi_status_code(struct client_state *clstate, unsigned *stt, const void *rdata, size_t rsz)
 {
 	char t[4];
@@ -1750,6 +1785,13 @@ _pollagain:					if (poll(polldf, 1, -1) == -1) {
 								/* As early as possible send response beginning */
 								if (clstate->sent_response_already == NO)
 									response_ok(clstate, st, NO);
+							}
+							else if (clstate->cgi_mode == CGI_MODE_NOHEADS) {
+								/* Shall never try to send our response headers if CGI did it already. */
+								if (clstate->sent_response_already == NO) {
+									if (is_status_line(clstate->workbuf, x) == YES)
+										clstate->sent_response_already = YES;
+								}
 							}
 							response_send_data(clstate, wbp+n, x-n);
 						}

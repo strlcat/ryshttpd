@@ -498,6 +498,7 @@ struct response_status {
 		Also this status code is displayed on a error page. */
 };
 
+const char *find_response_string(unsigned status);
 void response_chunk_length(struct client_state *clstate, size_t length);
 void response_chunk_end(struct client_state *clstate);
 void response_error(struct client_state *clstate, unsigned status);

@@ -32,7 +32,7 @@ static const struct response_status rh_responses[] = {
 #include "response_codes.h"
 };
 
-static const struct response_status *find_response(int status)
+static const struct response_status *find_response(unsigned status)
 {
 	size_t x;
 
@@ -41,6 +41,15 @@ static const struct response_status *find_response(int status)
 	}
 
 	return NULL;
+}
+
+const char *find_response_string(unsigned status)
+{
+	const struct response_status *rsp;
+
+	rsp = find_response(status);
+	if (!rsp) return NULL;
+	return rsp->response;
 }
 
 static void *add_to_response(void *rsp, rh_yesno crlf, const void *data, size_t szdata)

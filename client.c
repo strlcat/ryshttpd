@@ -1558,9 +1558,11 @@ _cgiserver:		tenvp = NULL;
 
 			cgisetenv(t, "%s=%s", "PWD", wdir);
 
+			/* It is encoded because of possibility to exploit - use HTTP_QUERY_STRING instead. */
 			d = urlencode(clstate->strargs);
 			cgisetenv(t, "%s=%s", "QUERY_STRING", d);
 			pfree(d);
+			cgisetenv(t, "%s=%s", "HTTP_QUERY_STRING", clstate->strargs);
 
 			cgisetenv(t, "%s=%s", "REQUEST_DATE", clstate->request_date);
 

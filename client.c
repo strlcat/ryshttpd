@@ -946,10 +946,10 @@ _closeret:
 	return r;
 }
 
-#define cgisetenv(to, fmt, ss, dd)								\
+#define cgisetenv(to, fmt, ...)									\
 	do {											\
 		size_t sz;									\
-		rh_asprintf(&to, fmt, ss, dd);							\
+		rh_asprintf(&to, fmt, __VA_ARGS__);						\
 		sz = DYN_ARRAY_SZ(tenvp);							\
 		tenvp = rh_realloc(tenvp, (sz+(sz == 0 ? 2 : 1)) * sizeof(char *));		\
 		if (sz) sz--;									\
@@ -1562,7 +1562,7 @@ _cgiserver:		tenvp = NULL;
 			d = urlencode(clstate->strargs);
 			cgisetenv(t, "%s=%s", "QUERY_STRING", d);
 			pfree(d);
-			cgisetenv(t, "%s=%s", "HTTP_QUERY_STRING", clstate->strargs);
+			cgisetenv(t, "%s=%s", "HTTP_QUERY_STRING", clstate->strargs ? clstate->strargs : "");
 
 			cgisetenv(t, "%s=%s", "REQUEST_DATE", clstate->request_date);
 
@@ -1571,7 +1571,7 @@ _cgiserver:		tenvp = NULL;
 			pfree(d);
 
 			cgisetenv(t, "%s=%s", "REQUEST_LINE", clstate->request_lines[0]);
-			cgisetenv(t, "%s=%s", "REQUEST_URI", clstate->requri);
+			cgisetenv(t, "%s=%s%c", "REQUEST_URI", clstate->requri, clstate->wants_dir == YES ? '/' : '\0');
 
 			switch (clstate->method) {
 				case REQ_METHOD_GET: d = "GET"; break;
@@ -1581,13 +1581,13 @@ _cgiserver:		tenvp = NULL;
 			}
 			cgisetenv(t, "%s=%s", "REQUEST_METHOD", d);
 
-			cgisetenv(t, "%s=%s", "PATH_INFO", clstate->path);
-			cgisetenv(t, "%s=%s", "SCRIPT_NAME", clstate->path);
-			cgisetenv(t, "%s=%s", "PATH_TRANSLATED", clstate->realpath);
+			cgisetenv(t, "%s=%s%c", "PATH_INFO", clstate->path, clstate->wants_dir == YES ? '/' : '\0');
+			cgisetenv(t, "%s=%s", "SCRIPT_FILENAME", clstate->realpath);
+			cgisetenv(t, "%s=%s%s%c", "PATH_TRANSLATED", clstate->httproot, clstate->path, clstate->wants_dir == YES ? '/' : '\0');
 
 			d = rh_strdup(clstate->realpath);
 			rh_strlrep(d, rh_szalloc(d), clstate->httproot, "");
-			cgisetenv(t, "%s=%s", "SCRIPT_FILENAME", d);
+			cgisetenv(t, "%s=%s", "SCRIPT_NAME", d);
 			pfree(d);
 
 			cgisetenv(t, "%s=%s", "CLIENT_LINE_ENDINGS",
@@ -1629,9 +1629,19 @@ _cgiserver:		tenvp = NULL;
 			s = rh_strdup(clstate->realpath);
 			targv[0] = rh_strdup(basename(s));
 			pfree(s);
-			if (clstate->is_indx == YES)
-				targv[1] = rh_strdup(wdir);
-			else if (rh_cgiserver) targv[1] = rh_strdup(clstate->path);
+			if (clstate->is_indx == YES) {
+				char *ta = NULL;
+				rh_asprintf(&ta, "%s%c", wdir, '/');
+				targv[1] = ta;
+			}
+			else if (rh_cgiserver) {
+				char *ta = NULL;
+				if (clstate->wants_dir == YES) {
+					rh_asprintf(&ta, "%s%c", clstate->path, '/');
+					targv[1] = ta;
+				}
+				else targv[1] = rh_strdup(clstate->path);
+			}
 			else targv[1] = NULL;
 			targv[2] = NULL;
 

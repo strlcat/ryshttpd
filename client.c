@@ -1325,13 +1325,16 @@ _defres:	if (clstate->method > REQ_METHOD_HEAD) {
 			goto _done;
 		}
 
+		/* Always expose "about" text. */
+		if (!strcmp(rsrc->name, "about_uuid.html")) goto _nodck;
+
 		/* currently not serving "directory" resources. */
 		if (clstate->wants_dir == YES) {
 			response_error(clstate, 400);
 			goto _done;
 		}
 
-		if (clstate->prepend_path && rsrc->is_static == NO) {
+_nodck:		if (clstate->prepend_path && rsrc->is_static == NO) {
 			drsrc = clone_resource(rsrc);
 			if (resource_prepend_path(drsrc, clstate->prepend_path) == NO)
 				free_resource(drsrc);

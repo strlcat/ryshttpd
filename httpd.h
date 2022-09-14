@@ -153,7 +153,7 @@ extern char *rh_nhcgi_execs;
 extern char *rh_cgieh_execs;
 extern char *rh_cgiserver;
 extern char *rh_cgi_path;
-extern char *rh_xrealip;
+extern char **rh_xrealips;
 extern char *rh_htaccess_name;
 extern char *rh_dir_prepend_path;
 #ifndef WITH_LIBMAGIC
@@ -523,7 +523,6 @@ struct client_state {
 			but clinfo->ipaddr always holds _real_ socket address. */
 	size_t nr_requests; /* No. of requests processed. */
 	rh_yesno is_keepalive; /* do not write log on empty requests */
-	rh_yesno xrealip_authed; /* is client acting as frontend? */
 	char *httproot; /* a copy of rh_root_dir in case if it gets changed from htaccess */
 
 	/* Client time. */

@@ -60,7 +60,7 @@ char *rh_nhcgi_execs;
 char *rh_cgieh_execs;
 char *rh_cgi_path;
 char *rh_cgiserver;
-char *rh_xrealip;
+char **rh_xrealips;
 char *rh_htaccess_name;
 char *rh_dir_prepend_path;
 #ifndef WITH_LIBMAGIC
@@ -377,7 +377,11 @@ int main(int argc, char **argv)
 							"\"regular\", \"noheaders\", "
 							"\"noendhead\".");
 					}
-					else if (!strcmp(s, "xrealip")) SETOPT(rh_xrealip, p);
+					else if (!strcmp(s, "xrealip")) {
+						size_t isz = DYN_ARRAY_SZ(rh_xrealips);
+						rh_xrealips = rh_realloc(rh_xrealips, (isz+1) * sizeof(char *));
+						rh_xrealips[isz] = rh_strdup(p);
+					}
 					else if (!strcmp(s, "htaccess")) SETOPT(rh_htaccess_name, p);
 					else if (!strcmp(s, "logrotate")) FLIP_YESNO(do_logrotate);
 					else if (!strcmp(s, "dir_prepend_path")) SETOPT(rh_dir_prepend_path, p);

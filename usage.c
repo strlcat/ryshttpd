@@ -91,9 +91,11 @@ void usage(void)
 		"      The script is provided with translated path given by client as it's first argument.");
 	rh_say("    -O cgimode=mode: set default CGI mode. Useful only for cgiserver now.\n"
 		"      Valid values: regular, noheaders, noendhead.");
-	rh_say("    -O xrealip=ipaddr: if ipaddr matches with real one of client, and client\n"
-		"      provies X-Real-IP header, then IP address from X-Real-IP header is taken\n"
-		"      as the \"real\" remote client address and gets logged as such");
+	rh_say("    -O xrealip=ipaddr[/mask]: if ipaddr or subnet/mask matches with real one\n"
+		"      of client, and client provies X-Real-IP header,\n"
+		"      then IP address from X-Real-IP header is taken\n"
+		"      as the \"real\" remote client address and gets logged as such.\n"
+		"      Multiple addresses can be specified with multiple -O xrealip= arguments.");
 	rh_say("    -O htaccess=filename: set alternative htaccess file name");
 	rh_say("    -O logrotate: enable SIGHUP listening and log reopening");
 	rh_say("    -O dir_prepend_path=str: prepend this string before all paths in directory\n"

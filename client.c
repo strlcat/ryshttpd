@@ -286,6 +286,16 @@ static rh_yesno match_client_useragent(const char *agent, const char *agtpat)
 	return r;
 }
 
+static rh_yesno xrealip_matches(const char *s_claddr, const char *s_xrealip)
+{
+	struct netaddr claddr, xrealip;
+
+	if (rh_parse_addr(s_xrealip, &xrealip) == NO) return NO;
+	if (rh_parse_addr(s_claddr, &claddr) == NO) return NO;
+
+	return rh_match_addr(&xrealip, &claddr);
+}
+
 static void reset_client_state(struct client_state *clstate)
 {
 	size_t sz, x;
@@ -1221,26 +1231,34 @@ _malformed:
 	/* just save client headers, header query system will reuse them. */
 	clstate->headers = parse_headers(clstate->request_lines, 1, 0);
 
-	/* Set xrealip condition */
-	if (rh_xrealip && !strcmp(clstate->ipaddr, rh_xrealip))
-		clstate->xrealip_authed = YES;
-	else clstate->xrealip_authed = NO;
+	/* Match X-Real-IP against a given set of trusted ip addresses */
+	if (rh_xrealips) {
+		rh_yesno xri_matched = NO;
 
-	/* Lookup X-Real-IP header if there is a need */
-	if (clstate->xrealip_authed == YES) {
-		s = client_header("X-Real-IP");
-		if (s) clstate->ipaddr = rh_strdup(s);
-	}
-	/*
-	 * Lookup X-Base-Path header if frontend serves multiple directories to us.
-	 * NOTE: -O xrealip= must be set. If frontend does not give us xrealip, then
-	 * client address will not be overwritten. And do you trust your frontend?
-	 */
-	if (clstate->xrealip_authed == YES) {
-		s = client_header("X-Base-Path");
-		if (s) {
-			pfree(clstate->prepend_path);
-			clstate->prepend_path = rh_strdup(s);
+		sz = DYN_ARRAY_SZ(rh_xrealips);
+		for (x = 0; x < sz; x++) {
+			if (xrealip_matches(clstate->ipaddr, rh_xrealips[x]) == YES) {
+				xri_matched = YES;
+				break;
+			}
+		}
+
+		/* Matched trusted address, gain parameters */
+		if (xri_matched == YES) {
+			/* Lookup X-Real-IP header if there is a need */
+			s = client_header("X-Real-IP");
+			if (s) clstate->ipaddr = rh_strdup(s);
+
+			/*
+			 * Lookup X-Base-Path header if frontend serves multiple directories to us.
+			 * NOTE: -O xrealip= must be set. If frontend does not give us xrealip, then
+			 * client address will not be overwritten. And do you trust your frontend?
+			 */
+			s = client_header("X-Base-Path");
+			if (s) {
+				pfree(clstate->prepend_path);
+				clstate->prepend_path = rh_strdup(s);
+			}
 		}
 	}
 

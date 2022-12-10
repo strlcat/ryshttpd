@@ -161,6 +161,7 @@ static void do_success_page(void)
 		io_write_data(1, rdwr_data, sz, NO, NULL);
 	}
 	close(fd);
+	rh_exit(0);
 }
 
 static void do_log(void)

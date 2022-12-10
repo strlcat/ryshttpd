@@ -95,7 +95,9 @@ void usage(void)
 		"      of client, and client provies X-Real-IP header,\n"
 		"      then IP address from X-Real-IP header is taken\n"
 		"      as the \"real\" remote client address and gets logged as such.\n"
-		"      Multiple addresses can be specified with multiple -O xrealip= arguments.");
+		"      Multiple addresses can be specified with multiple -O xrealip= arguments.\n"
+		"      If ipaddr starts with \"unix:\", then unix socket name is assumed, followed by\n"
+		"      uid and gid of peer process in form like: \"unix:path:uid.gid\"");
 	rh_say("    -O htaccess=filename: set alternative htaccess file name");
 	rh_say("    -O logrotate: enable SIGHUP listening and log reopening");
 	rh_say("    -O dir_prepend_path=str: prepend this string before all paths in directory\n"

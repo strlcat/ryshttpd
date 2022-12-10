@@ -290,6 +290,10 @@ static rh_yesno xrealip_matches(const char *s_claddr, const char *s_xrealip)
 {
 	struct netaddr claddr, xrealip;
 
+	if (!strncmp(s_xrealip, "unix:", CSTR_SZ("unix:")) && strchr(s_xrealip, ':') && strchr(s_xrealip, '.')) {
+		if (!strcmp(s_claddr, s_xrealip+CSTR_SZ("unix:"))) return YES;
+	}
+
 	if (rh_parse_addr(s_xrealip, &xrealip) == NO) return NO;
 	if (rh_parse_addr(s_claddr, &claddr) == NO) return NO;
 

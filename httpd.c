@@ -250,6 +250,7 @@ int main(int argc, char **argv)
 	char *s, *d, *t, *p, *T, *stoi;
 	char *lr_fpath, *lr_path, *lr_name, *lr_args, *lr_mimetype;
 	socklen_t unl;
+	mode_t mode, oldm;
 
 	svpid = getpid();
 	set_progname(*argv);
@@ -645,7 +646,6 @@ _usinit:
 		if (fchown(usfd, uid, gid) == -1) xerror("unix socket chown failed");
 	}
 	if (rh_unixsock_mode) {
-		mode_t mode;
 		char *stoi;
 
 		mode = (mode_t)strtoul(rh_unixsock_mode, &stoi, 8);
@@ -653,12 +653,17 @@ _usinit:
 
 		if (fchmod(usfd, mode) == -1) xerror("unix socket chmod failed");
 	}
+	else {
+		umask(oldm = umask(0777));
+		mode = (~oldm & 0666);
+	}
 
+	oldm = umask(~mode & 0777);
 	if (bind(usfd, (struct sockaddr *)&usaddr, unl) == -1)
 		xerror("unix socket binding error");
-
 	if (listen(usfd, 128) == -1)
 		xerror("unix socket listening error");
+	umask(oldm);
 
 _initdone:
 

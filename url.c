@@ -49,10 +49,10 @@ void urldecode(char *str, size_t n)
 			s = d+1;
 			goto _cont;
 		}
-		rh_strlrep(str, n, spec, chr);
+		rh_strlxstr(str, n, spec, chr);
 _cont:		if (s-str >= n) break;
 	}
-	rh_strlrep(str, n, "%25", "%");
+	rh_strlxstr(str, n, "%25", "%");
 }
 
 char *urlencode(const char *str)

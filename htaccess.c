@@ -75,7 +75,7 @@ static char *rewrite_resolve_substs(const void *rgx, const char *src, const char
 
 		d += CSTR_SZ("}");
 		rh_strlcpy_real(T, s, d-s+1 > sizeof(T) ? sizeof(T) : d-s+1);
-		rh_strlrep(r, rsz, T, t);
+		rh_strlxstr(r, rsz, T, t);
 		d = s + (t ? strlen(t) : 0);
 		pfree(t);
 	}
@@ -535,8 +535,8 @@ _rewrite:		/*
 				|| (dd-t && *(dd-1) != '\\'))
 				&& f == NO)) {
 					*dd = 0;
-					rh_strlrep(ss, l, "\\ ", " ");
-					rh_strlrep(ss, l, "\\\"", "\"");
+					rh_strlxstr(ss, l, "\\ ", " ");
+					rh_strlxstr(ss, l, "\\\"", "\"");
 					if (!pat) pat = ss;
 					else if (pat && !rwr) rwr = ss;
 					else break;
@@ -608,7 +608,7 @@ _rewrite:		/*
 					ss += CSTR_SZ("hdr_");
 					pp = find_header_value(clstate->headers, ss);
 					if (!pp) {
-						rh_strrep(ss, "_", "-");
+						rh_strxstr(ss, "_", "-");
 						pp = find_header_value(clstate->headers, ss);
 						if (!pp) {
 							ss = pss;

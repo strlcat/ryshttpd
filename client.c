@@ -80,7 +80,7 @@ static size_t read_raw_request(
 			/* That's CRLF request */
 			*crlf = YES;
 			/*
-			 * Win +2 NUL bytes so that strlrep will not fail.
+			 * Win +2 NUL bytes so that strlxstr will not fail.
 			 * ryshttpd works with LF only anyway.
 			 */
 			rh_memzero(s, y);
@@ -98,8 +98,8 @@ static size_t read_raw_request(
 				*tail = NULL;
 				*sztail = s-to;
 			}
-			/* strlrep gives exact new line length */
-			return rh_strlrep(to, s-to, "\r\n", "\n");
+			/* strlxstr gives exact new line length */
+			return rh_strlxstr(to, s-to, "\r\n", "\n");
 		}
 
 		/* Find LF */
@@ -239,7 +239,7 @@ static void tell_aggressive_cache(struct client_state *clstate)
 
 static void filter_special_htmlchars_sub(char **line, size_t sz, const char *chr, const char *schr)
 {
-_again:	if (rh_strlrep(*line, sz, chr, schr) >= sz) {
+_again:	if (rh_strlxstr(*line, sz, chr, schr) >= sz) {
 		if (sz < RH_ALLOC_SMALL) sz = RH_ALLOC_SMALL;
 		sz /= 2; sz *= 3;
 		if (sz >= RH_XSALLOC_MAX)
@@ -1198,7 +1198,7 @@ _malformed:
 	clstate->path = rh_strdup(s);
 	if (d) {
 		clstate->strargs = rh_strdup(d);
-		rh_strlrep(clstate->strargs, rh_szalloc(clstate->strargs), "+", " ");
+		rh_strlxstr(clstate->strargs, rh_szalloc(clstate->strargs), "+", " ");
 	}
 	pfree(s);
 
@@ -1421,7 +1421,7 @@ _badhost:		response_error(clstate, 404);
 	rh_astrcat(&d, clstate->httproot);
 	rh_astrcat(&d, "/");
 	rh_astrcat(&d, clstate->path);
-	rh_strlrep(d, rh_szalloc(d), "//", "/");
+	rh_strlxstr(d, rh_szalloc(d), "//", "/");
 	if (rh_follow_symlinks == YES) s = rh_strdup(d);
 	else s = rh_realpath(d);
 	if (!s) {
@@ -1470,7 +1470,7 @@ _not_found:
 		goto _done;
 	}
 	clstate->realpath = s;
-	rh_strlrep(clstate->realpath, rh_szalloc(clstate->realpath), "//", "/");
+	rh_strlxstr(clstate->realpath, rh_szalloc(clstate->realpath), "//", "/");
 
 	clstate->filedir = file_or_dir(clstate->realpath);
 	/*
@@ -1611,7 +1611,7 @@ _cgiserver:		tenvp = NULL;
 			cgisetenv(t, "%s=%s%s%c", "PATH_TRANSLATED", clstate->httproot, clstate->path, clstate->wants_dir == YES ? '/' : '\0');
 
 			d = rh_strdup(clstate->realpath);
-			rh_strlrep(d, rh_szalloc(d), clstate->httproot, "");
+			rh_strlxstr(d, rh_szalloc(d), clstate->httproot, "");
 			cgisetenv(t, "%s=%s", "SCRIPT_NAME", d);
 			pfree(d);
 
@@ -2135,7 +2135,7 @@ _no_send:		/*
 		x = strnlen(s, RH_XSALLOC_MAX);
 		/* x > 1: do not touch single "/" string. */
 		if (x > 1 && s[x-1] == '/') s[x-1] = 0;
-		rh_strlrep(s, rh_szalloc(s), "//", "/");
+		rh_strlxstr(s, rh_szalloc(s), "//", "/");
 
 		/* Verify the user has access */
 		err = verify_htaccess(clstate, s, clstate->httproot);
@@ -2152,7 +2152,7 @@ _no_send:		/*
 			/* Reinstall realpath pointer */
 			pfree(clstate->realpath);
 			clstate->realpath = s;
-			rh_strlrep(clstate->realpath, rh_szalloc(clstate->realpath), "//", "/");
+			rh_strlxstr(clstate->realpath, rh_szalloc(clstate->realpath), "//", "/");
 			clstate->filedir = PATH_IS_FILE;
 			clstate->is_indx = YES;
 			/* Send as regular file */
@@ -2369,7 +2369,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 				ppath(clstate->prepend_path),
 				ppath(clstate->prepend_path), dpath,
 				ppath(clstate->prepend_path), dpath);
-			sz = rh_strlrep(d, sz+1, "//", "/");
+			sz = rh_strlxstr(d, sz+1, "//", "/");
 			response_chunk_length(clstate, sz);
 			response_send_data(clstate, d, sz);
 			response_chunk_end(clstate);
@@ -2523,7 +2523,7 @@ _failed_chdir:		if (do_text == YES) {
 			pfree(uname);
 			pfree(gname);
 
-			xsz = rh_strlrep(entline, xsz+1, "//", "/");
+			xsz = rh_strlxstr(entline, xsz+1, "//", "/");
 			response_chunk_length(clstate, xsz);
 			response_send_data(clstate, entline, xsz);
 			response_chunk_end(clstate);

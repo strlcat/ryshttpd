@@ -252,7 +252,7 @@ _again:	rh_memzero(&fst, sizeof(struct fmtstr_state));
 	pfree(s);
 
 	/* Cleanup of double slashes in paths (FIXME) */
-	rh_strlrep(errdata, rh_szalloc(errdata), "//", "/");
+	rh_strlxstr(errdata, rh_szalloc(errdata), "//", "/");
 	/* shrink it so the Content-Length size is actual */
 	sz = shrink_dynstr(&errdata);
 	if (sz > 0) sz--;

@@ -148,11 +148,11 @@ size_t headers_fmtstr_parse(struct http_header *hdrlist, char *line, size_t szli
 
 		data = find_header_value(hdrlist, name);
 		if (!data) {
-			rh_strrep(name, "_", "-");
+			rh_strxstr(name, "_", "-");
 			data = find_header_value(hdrlist, name);
 		}
 		if (!data) data = rpl;
-		n = rh_strlrep(line, szline, fmt, data);
+		n = rh_strlxstr(line, szline, fmt, data);
 		if (n >= szline) break;
 		d = bs + (data ? strlen(data) : 0);
 	}

@@ -174,7 +174,7 @@ static void filter_log_simple(char *logln, size_t szlogln)
 _last:		if ((char)x == '\n') continue;
 		chr[0] = (char)x;
 		if (memchr(logln, x, szlogln)) {
-			rh_strlrep(logln, szlogln, chr, ".");
+			rh_strlxstr(logln, szlogln, chr, ".");
 		}
 		if (x == 127) return;
 	}
@@ -510,7 +510,7 @@ int main(int argc, char **argv)
 	}
 
 	if (!rh_root_dir) xexits("root directory is required!");
-	rh_strlrep(rh_root_dir, rh_szalloc(rh_root_dir), "//", "/");
+	rh_strlxstr(rh_root_dir, rh_szalloc(rh_root_dir), "//", "/");
 
 #ifdef WITH_LIBMAGIC
 	if (init_magic_db() == NO) xerror("init libmagic");

@@ -41,8 +41,8 @@ static void filter_logline(char *logline)
 _last:		chr[0] = (char)x;
 		rh_snprintf(schr, sizeof(schr), "\\x%02zx", x);
 		if (strchr(logline, x)) {
-			if (rh_strlrep(logline, sz, chr, schr) >= sz)
-				rh_strlrep(logline, sz, chr, ".");
+			if (rh_strlxstr(logline, sz, chr, schr) >= sz)
+				rh_strlxstr(logline, sz, chr, ".");
 		}
 		if (x == 127) return;
 	}

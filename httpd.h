@@ -262,9 +262,9 @@ struct fmtstr_args;
 void clear_environ(void);
 void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_state *clstate);
 
-size_t rh_strltrep(char *str, size_t n, int *nr_reps, const char *from, const char *to);
-size_t rh_strlrep(char *str, size_t n, const char *from, const char *to);
-size_t rh_strrep(char *str, const char *from, const char *to);
+size_t rh_strltxstr(char *str, size_t n, int *nr_reps, const char *from, const char *to);
+size_t rh_strlxstr(char *str, size_t n, const char *from, const char *to);
+size_t rh_strxstr(char *str, const char *from, const char *to);
 
 void rh_memzero(void *p, size_t l);
 rh_yesno memtest(void *p, size_t l, int c);

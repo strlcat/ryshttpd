@@ -386,7 +386,7 @@ _trimw:		*p = 0; p++;
 				&& found) {
 					char *flt;
 
-					rh_strlrep(pp, strlen(pp)+1, "\"", NULL);
+					rh_strlxstr(pp, strlen(pp)+1, "\"", NULL);
 					flt = rh_strdup(pp);
 					upload_file_name = rh_strdup(basename(flt));
 					pfree(flt);

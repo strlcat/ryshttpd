@@ -88,7 +88,7 @@ void nuke_fmtstr_templates(char *line, size_t szline)
 			rh_strlcpy_real(fmt, s, t-s+1);
 		}
 
-		rh_strlrep(line, szline, fmt, NULL);
+		rh_strlxstr(line, szline, fmt, NULL);
 		d = s;
 	}
 
@@ -139,7 +139,7 @@ char *parse_fmtstr(struct fmtstr_state *fst)
 		}
 
 		f = -1;
-		n = rh_strltrep(out, outl, &f, s, d);
+		n = rh_strltxstr(out, outl, &f, s, d);
 		if (n >= outl) {
 			fst->trunc = 1;
 			break;
@@ -313,9 +313,9 @@ void parse_escapes(char *str, size_t n)
 	if (!str || str_empty(str)) return;
 	if (!strchr(str, '\\')) return;
 
-	rh_strlrep(str, n, "\\n", "\n");
-	rh_strlrep(str, n, "\\r", "\r");
-	rh_strlrep(str, n, "\\t", "\t");
+	rh_strlxstr(str, n, "\\n", "\n");
+	rh_strlxstr(str, n, "\\r", "\r");
+	rh_strlxstr(str, n, "\\t", "\t");
 
 	s = str;
 	while (1) {
@@ -324,7 +324,7 @@ void parse_escapes(char *str, size_t n)
 		rh_strlcpy_real(spec, d, sizeof(spec));
 		if (!isxdigit(spec[3])) spec[3] = 0;
 		if (!getxchr(chr, spec+2)) goto _cont;
-		rh_strlrep(str, n, spec, chr);
+		rh_strlxstr(str, n, spec, chr);
 _cont:		s = d+1;
 		if (s-str >= n) break;
 	}
@@ -339,7 +339,7 @@ static size_t remove_strings(char *str, size_t strsz, ...)
 	for (n = 0; va_arg(ap, const char *); n++);
 	va_end(ap);
 	va_start(ap, strsz);
-	for (x = 0; x < n; x++) r = rh_strlrep(str, strsz, va_arg(ap, const char *), NULL);
+	for (x = 0; x < n; x++) r = rh_strlxstr(str, strsz, va_arg(ap, const char *), NULL);
 	va_end(ap);
 
 	return r;
@@ -350,7 +350,7 @@ size_t filter_dotdots(char *str, size_t strsz)
 	size_t n;
 
 	/* It does not tries to translate paths. It just does cleanup. */
-	rh_strlrep(str, strsz, "//", "/");
+	rh_strlxstr(str, strsz, "//", "/");
 	n = remove_strings(str, strsz, "../", "/../", "./", "/./", "/..", NULL);
 
 	if (n > 1 && str[n-1] == '/') {

@@ -107,7 +107,7 @@ size_t args_fmtstr_parse(struct http_arg *args, char *line, size_t szline, const
 
 		data = find_arg_value(args, name);
 		if (!data) data = rpl;
-		n = rh_strlrep(line, szline, fmt, data);
+		n = rh_strlxstr(line, szline, fmt, data);
 		if (n >= szline) break;
 		d = bs + (data ? strlen(data) : 0);
 	}

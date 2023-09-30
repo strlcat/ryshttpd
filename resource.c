@@ -156,7 +156,7 @@ rh_yesno resource_prepend_path(struct embedded_resource *rsrc, const char *ppath
 _extend:
 	rsrc->data = rh_realloc(rsrc->data, n);
 	x = 2;
-	if (rh_strltrep(rsrc->data, n, &x, "href=\"/", s) >= n) {
+	if (rh_strltxstr(rsrc->data, n, &x, "href=\"/", s) >= n) {
 		n += z;
 		if (n > RH_XSALLOC_MAX) {
 			pfree(s);

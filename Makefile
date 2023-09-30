@@ -30,7 +30,7 @@ default: ryshttpd
 all: ryshttpd htupload
 
 RYSHTTPD_SRCS = $(filter-out htupload.c, $(wildcard *.c))
-HTUPLOAD_SRCS = htupload.c conf.c say.c error.c memory.c io.c strrep.c regexmatch.c xmalloc.c xstrlcpy.c xmemmem.c
+HTUPLOAD_SRCS = htupload.c conf.c say.c error.c memory.c io.c strxstr.c regexmatch.c xmalloc.c xstrlcpy.c xmemmem.c
 HDRS = $(wildcard *.h)
 RYSHTTPD_OBJS = $(RYSHTTPD_SRCS:.c=.o)
 HTUPLOAD_OBJS = $(HTUPLOAD_SRCS:.c=.o)

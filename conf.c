@@ -65,7 +65,7 @@ void *load_config(int fd)
 		return NULL;
 	}
 
-	x = rh_strlrep(r->cfgdata, x, "\r\n", "\n");
+	x = rh_strlxstr(r->cfgdata, x, "\r\n", "\n");
 	r->cfgdata = rh_realloc(r->cfgdata, x+1);
 	s = r->cfgdata+x; *s = 0;
 

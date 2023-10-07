@@ -48,6 +48,7 @@ char *find_index_file(const char *path)
 		if (regex_exec(rh_indexes_rgx, de->d_name)) {
 			rh_asprintf(&r, "%s/%s", path, de->d_name);
 			if (file_or_dir(r) == PATH_IS_FILE) break;
+			else pfree(r);
 		}
 	}
 

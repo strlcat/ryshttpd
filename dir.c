@@ -61,6 +61,7 @@ int file_or_dir(const char *path)
 	rh_memzero(&st, sizeof(struct stat));
 	if (stat(path, &st) == -1) return -1;
 	if (S_ISDIR(st.st_mode)) return PATH_IS_DIR;
+	/* including symlinks, specials and pseudos */
 	return PATH_IS_FILE;
 }
 

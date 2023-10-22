@@ -20,7 +20,7 @@
 	"%{req_recv}/%{req_sent} %{req_range_start}-%{req_range_end}/%{req_filesize} "	\
 	"\"%{hdr_user_agent}\" \"%{hdr_referer}\""
 /* index file names which are considered to be shown instead of directory listing */
-#define RH_DEFAULT_INDEXES "index\\.(htm(|l)|txt|(|nh|eh)cgi|sh|pl)"
+#define RH_DEFAULT_INDEXES "(|.*/)index\\.(htm(|l)|txt|(|nh|eh)cgi|sh|pl)"
 /* htaccess default file name */
 #define RH_DEFAULT_HTACCESS_NAME ".htaccess"
 /* "plain CGI" file names (regex) to be executed. */

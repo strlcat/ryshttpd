@@ -45,11 +45,12 @@ char *find_index_file(const char *path)
 		|| !strcmp(de->d_name, "..")
 		|| strstr(de->d_name, rh_htaccess_name)) continue;
 
-		if (regex_exec(rh_indexes_rgx, de->d_name)) {
-			rh_asprintf(&r, "%s/%s", path, de->d_name);
+		rh_asprintf(&r, "%s/%s", path, de->d_name);
+		if (regex_exec(rh_indexes_rgx, r)) {
 			if (file_or_dir(r) == PATH_IS_FILE) break;
 			else pfree(r);
 		}
+		else pfree(r);
 	}
 
 	closedir(dp);

@@ -8,6 +8,8 @@
 
 /* Use libmagic. Without it will include small static mime table based on regex file names. */
 /* #define WITH_LIBMAGIC */
+/* With chroot(2), use fexecve(3) to restart ourselves inside chroot and becoming more "cleaner". Optional. */
+/* #define WITH_FEXECVE */
 
 /* default listening port (both IPv4 and IPv6) */
 #define RH_DEFAULT_PORT "8079"

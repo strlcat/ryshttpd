@@ -106,6 +106,11 @@ void *rh_cgiexecs_rgx;
 void *rh_nhcgiexecs_rgx;
 void *rh_cgiehexecs_rgx;
 
+#ifdef WITH_FEXECVE
+static rh_yesno chroot_reexec;
+static int fdexe = -1;
+#endif
+
 static int sv4fd = -1;
 static struct sockaddr_in sv4addr;
 static int sv6fd = -1;
@@ -140,6 +145,62 @@ static void do_daemonise(void)
 	for (i = 0; i < 3; i++)
 		open("/dev/null", O_RDWR);
 }
+
+/*
+ * Find and open executable file in O_EXEC mode.
+ * Return file descriptor fd obtained.
+ */
+#ifdef WITH_FEXECVE
+static int find_myself_fd(const char *str)
+{
+	int fd = -1;
+
+	/* @NULL: seek the default we've got after execve */
+	char *s = rh_which(NULL, str);
+	if (s == NULL) return -1;
+
+	fd = open(s, O_EXEC);
+	if (rh_fcntl(fd, F_SETFD, FD_CLOEXEC, YES) == -1) {
+		close(fd);
+		return -1;
+	}
+
+	return fd;
+}
+
+static int try_sys_fexecve(int fd, char **argv, char **envp)
+{
+	errno = 0;
+#ifdef SYS_fexecve /* maybe in future? */
+	int rx = syscall(SYS_fexecve, fd, argv, envp);
+	if (rx == -1 && errno != ENOSYS) return -1;
+#endif
+#ifdef SYS_execveat
+	int ry = syscall(SYS_execveat, fd, "", argv, envp, AT_EMPTY_PATH);
+	if (ry == -1 && errno != ENOSYS) return -1;
+#endif
+	return fexecve(fd, argv, envp);
+}
+
+static int do_fexecve(int fd, char **argv)
+{
+	char tmp[16];
+
+	if (usfd != -1) {
+		rh_snprintf(tmp, sizeof(tmp), "%u", usfd);
+		setenv("USFD", tmp, 1);
+	}
+	if (sv4fd != -1) {
+		rh_snprintf(tmp, sizeof(tmp), "%u", sv4fd);
+		setenv("SV4FD", tmp, 1);
+	}
+	if (sv6fd != -1) {
+		rh_snprintf(tmp, sizeof(tmp), "%u", sv6fd);
+		setenv("SV6FD", tmp, 1);
+	}
+	return try_sys_fexecve(fd, argv, environ);
+}
+#endif
 
 static void manage_clients(int sig);
 
@@ -348,6 +409,9 @@ int main(int argc, char **argv)
 					else if (!strcmp(s, "magicdb")) SETOPT(rh_magicdb_path, p);
 #endif
 					else if (!strcmp(s, "chroot")) SETOPT(rh_chroot_dir, p);
+#ifdef WITH_FEXECVE
+					else if (!strcmp(s, "chroot_reexec")) FLIP_YESNO(chroot_reexec);
+#endif
 					else if (!strcmp(s, "forkuser")) FLIP_YESNO(switch_user_on_fork);
 					else if (!strcmp(s, "user")) SETOPT(rh_switch_user, p);
 					else if (!strcmp(s, "euser")) SETOPT(rh_switch_euser, p);
@@ -500,6 +564,23 @@ int main(int argc, char **argv)
 		}
 	}
 
+#ifdef WITH_FEXECVE
+	if (chroot_reexec) {
+		fdexe = find_myself_fd(progname);
+		if (fdexe == -1) fdexe = find_myself_fd(PROGRAM_NAME);
+
+		for (c = 1; c < argc; c++) {
+			if ((!strcmp(argv[c], "chroot_reexec") && !strcmp(argv[c-1], "-O"))
+			|| (!strncmp(argv[c], "chroot=", CSTR_SZ("chroot=")) && !strcmp(argv[c-1], "-O"))) {
+				c--;
+				memmove(&argv[c], &argv[c+2], ((argc-c-2) * sizeof(char *)));
+				argc -= 2;
+				argv[argc] = NULL;
+			}
+		}
+	}
+#endif
+
 	if (rh_logfmt) parse_escapes(rh_logfmt, rh_szalloc(rh_logfmt));
 	if (rh_timefmt) parse_escapes(rh_timefmt, rh_szalloc(rh_timefmt));
 
@@ -559,6 +640,14 @@ int main(int argc, char **argv)
 	if (ipv4_only == YES) goto _v4init;
 
 	/* IPv6 socket init */
+#ifdef WITH_FEXECVE
+	s = getenv("SV6FD");
+	if (s) {
+		sv6fd = atoi(s);
+		unsetenv("SV6FD");
+		goto _v4init;
+	}
+#endif
 	sv6fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
 	if (sv6fd == -1) goto _v4init; /* ok no v6, fallback to v4 */
 	c = 1;
@@ -596,6 +685,14 @@ int main(int argc, char **argv)
 
 _v4init:
 	/* IPv4 socket init */
+#ifdef WITH_FEXECVE
+	s = getenv("SV4FD");
+	if (s) {
+		sv4fd = atoi(s);
+		unsetenv("SV4FD");
+		goto _usinit;
+	}
+#endif
 	sv4fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sv4fd == -1) xerror("error creating socket");
 	c = 1;
@@ -619,8 +716,16 @@ _v4init:
 		xerror("listening error");
 
 _usinit:
-	if (!rh_unixsock_path) goto _initdone;
 	/* Unix socket init */
+#ifdef WITH_FEXECVE
+	s = getenv("USFD");
+	if (s) {
+		usfd = atoi(s);
+		unsetenv("USFD");
+		goto _initdone;
+	}
+#endif
+	if (!rh_unixsock_path) goto _initdone;
 	rh_memzero(&usaddr, sizeof(struct sockaddr_un));
 	usaddr.sun_family = AF_UNIX;
 	if (rh_unixsock_path[0] != '@') unlink(rh_unixsock_path);
@@ -689,6 +794,14 @@ _initdone:
 		rh_issuper = user_switch_issuper(usw);
 		apply_user_switch(usw);
 		free_user_switch(usw);
+#ifdef WITH_FEXECVE
+		if (chroot_reexec && fdexe != -1) {
+			if (do_fexecve(fdexe, argv) == -1) {
+				xerror("reexecuting myself failed: fexecve");
+			}
+		}
+		else close(fdexe);
+#endif
 	}
 
 	while (1) {

@@ -26,6 +26,12 @@ override CFLAGS+=-fPIE
 override LDFLAGS+=-pie -Wl,-z,relro
 endif
 
+ifneq (,$(CHROOTEXEC))
+# Most modern POSIX platforms, omit on very old systems before POSIX.1-2008
+override CFLAGS+=-DWITH_FEXECVE
+endif
+
+
 default: ryshttpd
 all: ryshttpd htupload
 

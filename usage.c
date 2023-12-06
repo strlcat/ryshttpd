@@ -72,6 +72,15 @@ void usage(void)
 	rh_say("    -O magicdb=path: load alternative libmagic mime database");
 #endif
 	rh_say("    -O chroot=dir: chroot into this directory");
+#ifdef WITH_FEXECVE
+	rh_say("    -O chroot_reexec: restart %s from scratch while being in chroot", progname);
+	rh_say("       Self-restarting requires either a minimal dynamic library runtime");
+	rh_say("       present inside the chroot, or statically linked %s binary", progname);
+#ifdef WITH_LIBMAGIC
+	rh_say("       Note that any external dependencies like libmagic may work incorrectly");
+	rh_say("       if no libmagic libraries and databases were moved into chroot");
+#endif
+#endif
 	rh_say("    -O forkuser: server stays with current privileges, but client changes");
 	rh_say("    -O user=uid/uname: set uid to specified user or uid");
 	rh_say("    -O euser=uid/uname: set euid to specified user or uid");

@@ -604,35 +604,6 @@ static void free_dir_items(struct dir_items *di)
 	pfree(di);
 }
 
-static char *rh_which(const char *envpath, const char *name)
-{
-	char *T, *s, *d, *t;
-	char *r;
-	rh_yesno x;
-
-	T = rh_strdup(envpath);
-	s = d = T; t = r = NULL; x = NO;
-	while ((s = strtok_r(d, ":", &t))) {
-		if (d) d = NULL;
-
-		rh_asprintf(&r, "%s/%s", s, name);
-		if (is_exec(r)) {
-			x = YES;
-			break;
-		}
-	}
-
-	pfree(T);
-
-	if (x == YES) {
-		shrink_dynstr(&r);
-		return r;
-	}
-
-	pfree(r);
-	return NULL;
-}
-
 /* TAR stuff */
 struct tar_header {
 	char name[100];

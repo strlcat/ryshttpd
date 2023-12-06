@@ -73,3 +73,40 @@ rh_yesno is_exec(const char *path)
 	}
 	return NO;
 }
+
+char *rh_which(const char *envpath, const char *name)
+{
+	char *T, *s, *d, *t;
+	const char *p;
+	char *r;
+	rh_yesno x;
+
+	p = NULL;
+	if (envpath == NULL) {
+		envpath = rh_getenvline(environ, "PATH=");
+		p = envpath+CSTR_SZ("PATH=");
+	}
+	if (envpath == NULL) return NULL;
+
+	T = rh_strdup(p ? p : envpath);
+	s = d = T; t = r = NULL; x = NO;
+	while ((s = strtok_r(d, ":", &t))) {
+		if (d) d = NULL;
+
+		rh_asprintf(&r, "%s/%s", s, name);
+		if (is_exec(r)) {
+			x = YES;
+			break;
+		}
+	}
+
+	pfree(T);
+
+	if (x == YES) {
+		shrink_dynstr(&r);
+		return r;
+	}
+
+	pfree(r);
+	return NULL;
+}

@@ -57,6 +57,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
@@ -91,6 +92,12 @@
 
 #ifndef FNM_CASEFOLD
 #define FNM_CASEFOLD 0
+#endif
+
+#ifdef WITH_FEXECVE
+#ifndef O_EXEC
+#define O_EXEC O_PATH
+#endif
 #endif
 
 enum { NO, YES };
@@ -260,6 +267,7 @@ struct fmtstr_args;
 	} while (0)
 
 void clear_environ(void);
+char *rh_getenvline(char *const *envp, const char *str);
 void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_state *clstate);
 
 size_t rh_strltxstr(char *str, size_t n, int *nr_reps, const char *from, const char *to);
@@ -285,6 +293,7 @@ char *rh_realpath(const char *path);
 rh_yesno is_symlink(const char *path);
 int file_or_dir(const char *path);
 rh_yesno is_exec(const char *path);
+char *rh_which(const char *envpath, const char *name);
 
 char *find_index_file(const char *path);
 

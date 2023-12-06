@@ -39,6 +39,24 @@ void clear_environ(void)
 	*environ = NULL;
 }
 
+char *rh_getenvline(char *const *envp, const char *str)
+{
+	size_t x;
+	char *s, *d;
+
+	if (!envp || (!str || strlen(str) == 0)) return NULL;
+
+	for (x = 0; envp[x]; x++) {
+		s = envp[x];
+		d = strchr(s, '=');
+		if (!d) continue;
+		if (!strncmp(s, str, d-s))
+			return s;
+	}
+
+	return NULL;
+}
+
 void preset_fsa(struct fmtstr_args **fsa, size_t *nr_fsa, const struct client_state *clstate)
 {
 	struct client_info *clinfo = clstate->clinfo;

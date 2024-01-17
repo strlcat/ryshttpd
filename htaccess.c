@@ -277,6 +277,12 @@ _noindex:		if (!strcasecmp(d, "yes") && !strcmp(htadir, path))
 			continue;
 		}
 
+		else if (!strcasecmp(s, "cryptpw")) {
+_cryptpw:		pfree(clstate->cryptpw);
+			if (strcmp(d, "<NULL>") != 0) clstate->cryptpw = rh_strdup(d);
+			continue;
+		}
+
 		else if (!strcasecmp(s, "tar")) {
 _allow_tar:		sz = strlen(htadir);
 			if (!strcasecmp(d, "yes") && !strncmp(htadir, path, sz))
@@ -430,6 +436,14 @@ _do_matchip:		dpath = rh_strdup(t);
 				d = dpath+CSTR_SZ("noindex ");
 				*(d-1) = 0;
 				goto _noindex;
+			}
+			else if (!strncmp(dpath, "cryptpw ", CSTR_SZ("cryptpw "))) {
+				pfree(ln);
+				ln = dpath;
+				s = dpath;
+				d = dpath+CSTR_SZ("cryptpw ");
+				*(d-1) = 0;
+				goto _cryptpw;
 			}
 			else if (!strncmp(dpath, "tar ", CSTR_SZ("tar "))) {
 				pfree(ln);
@@ -737,6 +751,14 @@ _addit:					rh_astrcat(&dpath, ss);
 					d = dpath+CSTR_SZ("noindex ");
 					*(d-1) = 0;
 					goto _noindex;
+				}
+				else if (!strncmp(dpath, "cryptpw ", CSTR_SZ("cryptpw "))) {
+					pfree(ln);
+					ln = dpath;
+					s = dpath;
+					d = dpath+CSTR_SZ("cryptpw ");
+					*(d-1) = 0;
+					goto _cryptpw;
 				}
 				else if (!strncmp(dpath, "tar ", CSTR_SZ("tar "))) {
 					pfree(ln);

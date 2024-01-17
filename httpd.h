@@ -90,6 +90,10 @@
 #define rh_calloc xcalloc
 #define rh_szalloc xszalloc
 
+#include "tfdef.h"
+#include "tfprng.h"
+#include "skein.h"
+
 #ifndef FNM_CASEFOLD
 #define FNM_CASEFOLD 0
 #endif
@@ -167,6 +171,7 @@ extern char *rh_dir_prepend_path;
 extern char *rh_content_charset;
 #endif
 extern char *rh_list_date_fmt;
+extern char *rh_cryptpw;
 extern unsigned long rh_client_request_timeout;
 extern unsigned long rh_client_keepalive_timeout;
 extern size_t rh_client_keepalive_requests;
@@ -285,6 +290,8 @@ rh_yesno is_number(const char *s, int sign);
 int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);
 rh_yesno is_writable(const char *path);
 void useconds_to_timeval(unsigned long long useconds, struct timeval *tv);
+rh_yesno rh_getrandom(void *out, size_t sz);
+void skeinhash(void *hash, const void *msg, size_t msgsz);
 
 #define PATH_IS_FILE 1
 #define PATH_IS_DIR  2
@@ -412,11 +419,13 @@ rh_fsize rh_str_human_fsize(const char *s, char **stoi);
 
 typedef size_t (*io_read_fn)(void *, void *, size_t);
 typedef size_t (*io_write_fn)(void *, const void *, size_t);
+typedef void (*io_mangle_fn)(void *, void *, size_t);
 typedef rh_fsize (*io_seek_fn)(void *, rh_fsize);
 
 struct io_stream_args {
 	io_read_fn rdfn; /* reading function pointer */
 	io_write_fn wrfn; /* writing function pointer */
+	io_mangle_fn mgfn; /* data preprocessing function pointer */
 	io_seek_fn skfn; /* seeking function pointer */
 	void *fn_args; /* data required for functions above */
 	void *workbuf; /* temporary rw buffer */
@@ -523,6 +532,13 @@ void response_send_data(struct client_state *clstate, const void *data, size_t s
 #define CGI_MODE_NOHEADS 2
 #define CGI_MODE_ENDHEAD 3
 
+struct tf_ctx {
+	TF_BYTE_TYPE key[TF_KEY_SIZE];
+	TF_BYTE_TYPE ctr[TF_BLOCK_SIZE];
+	TF_BYTE_TYPE carry[TF_BLOCK_SIZE];
+	size_t carry_bytes;
+};
+
 /* keep in sync with reset_client_state@client.c */
 struct client_state {
 	/* Connection, state and keepalive info. Not touched by reset_client_state. */
@@ -578,6 +594,8 @@ struct client_state {
 	rh_yesno allow_tar; /* allow to take a whole tar archive of this directory */
 	void *hideindex_rgx; /* htaccess "hideindex" regex matching data */
 	char *prevpath; /* saved previous path in case of directory listing */
+	char *cryptpw; /* symmetric encryption password */
+	struct tf_ctx cryptctx; /* encryption context */
 
 	/* Is response sent already? */
 	rh_yesno sent_response_already;

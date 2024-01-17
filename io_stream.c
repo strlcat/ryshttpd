@@ -50,7 +50,7 @@ rh_yesno io_stream_file(struct io_stream_args *ios_args)
 
 	if (!ios_args) return NO;
 
-	if (!ios_args->rdfn || !ios_args->wrfn || !ios_args->skfn) {
+	if (!ios_args->rdfn || !ios_args->wrfn || !ios_args->mgfn || !ios_args->skfn) {
 		ios_args->error = EINVAL;
 		return NO;
 	}
@@ -94,6 +94,8 @@ _ragain:	li = ios_args->rdfn(ios_args->fn_args, pblk, lr);
 			lr -= li;
 			goto _ragain;
 		}
+
+		ios_args->mgfn(ios_args->fn_args, pblk, lr);
 
 		pblk = ios_args->workbuf;
 		lr = ld;

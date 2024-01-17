@@ -65,3 +65,54 @@ void useconds_to_timeval(unsigned long long useconds, struct timeval *tv)
 	tv->tv_sec = useconds / 1000000;
 	tv->tv_usec = useconds - ((useconds / 1000000) * 1000000);
 }
+
+static rh_yesno prng_init(void)
+{
+	static rh_yesno initdone;
+	int fd;
+	size_t sz, rd;
+	TF_BYTE_TYPE tmp[TF_KEY_SIZE], *p;
+
+	if (initdone) return YES;
+
+#ifdef SYS_getrandom
+	if (syscall(SYS_getrandom, tmp, sizeof(tmp), 0) == sizeof(tmp)) goto _done;
+#endif
+
+	fd = open("/dev/urandom", O_RDONLY | O_LARGEFILE);
+	if (fd == -1) fd = open("/dev/arandom", O_RDONLY | O_LARGEFILE);
+	if (fd == -1) fd = open("/dev/prandom", O_RDONLY | O_LARGEFILE);
+	if (fd == -1) fd = open("/dev/srandom", O_RDONLY | O_LARGEFILE);
+	if (fd == -1) fd = open("/dev/random", O_RDONLY | O_LARGEFILE);
+	if (fd == -1) return NO;
+
+	sz = sizeof(tmp);
+	p = tmp;
+_again:	rd = read(fd, p, sz);
+	if (rd < sz && rd != NOSIZE) {
+		p += rd;
+		sz -= rd;
+		goto _again;
+	}
+	close(fd);
+
+_done:	tf_prng_seedkey(tmp);
+	initdone = YES;
+	return YES;
+}
+
+rh_yesno rh_getrandom(void *out, size_t sz)
+{
+	if (!prng_init()) return NO;
+	tf_prng_genrandom(out, sz);
+	return YES;
+}
+
+void skeinhash(void *hash, const void *msg, size_t msgsz)
+{
+	struct skein ctx;
+
+	skein_init(&ctx, TF_NR_KEY_BITS);
+	skein_update(&ctx, msg, msgsz);
+	skein_final(hash, &ctx);
+}

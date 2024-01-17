@@ -153,6 +153,30 @@ static size_t read_raw_request(
 	return 0;
 }
 
+static void set_counter(TF_BYTE_TYPE *ctr, rh_fsize seekpt)
+{
+	rh_fsize seekbytes = seekpt / TF_BLOCK_SIZE;
+	tf_ctr_set(ctr, &seekbytes, sizeof(rh_fsize));
+}
+
+static rh_yesno make_cryptctx(const char *cryptpw, rh_fsize start_from, struct tf_ctx *cryptctx)
+{
+	rh_memzero(cryptctx, sizeof(struct tf_ctx));
+	cryptctx->carry_bytes = 0;
+
+	if (!rh_getrandom(cryptctx->ctr, TF_BLOCK_SIZE)) return NO;
+
+	set_counter(cryptctx->ctr, start_from);
+	skeinhash(cryptctx->key, cryptpw, strlen(cryptpw));
+
+	return YES;
+}
+
+static void do_ctr_crypt(struct tf_ctx *ctx, void *data, size_t szdata)
+{
+	tf_ctr_crypt_carry(ctx->key, ctx->ctr, data, data, szdata, ctx->carry, &ctx->carry_bytes);
+}
+
 static size_t do_stream_file_reader(void *clstate, void *data, size_t szdata)
 {
 	struct client_state *uclstate = clstate;
@@ -165,9 +189,16 @@ static size_t do_stream_file_writer(void *clstate, const void *data, size_t szda
 	return io_send_data(uclstate->clinfo, data, szdata, YES, NO);
 }
 
+static void do_stream_file_mangler(void *clstate, void *data, size_t szdata)
+{
+	struct client_state *uclstate = clstate;
+	if (uclstate->cryptpw) do_ctr_crypt(&uclstate->cryptctx, data, szdata);
+}
+
 static rh_fsize do_stream_file_seeker(void *clstate, rh_fsize offset)
 {
 	struct client_state *uclstate = clstate;
+	if (uclstate->cryptpw) set_counter(uclstate->cryptctx.ctr, offset);
 	return (rh_fsize)lseek(uclstate->file_fd, (off_t)offset, SEEK_SET);
 }
 
@@ -181,6 +212,7 @@ static void do_stream_file(struct client_state *clstate)
 	ios_args.fn_args = clstate;
 	ios_args.rdfn = do_stream_file_reader;
 	ios_args.wrfn = do_stream_file_writer;
+	ios_args.mgfn = do_stream_file_mangler;
 	ios_args.skfn = do_stream_file_seeker;
 
 	ios_args.workbuf = clstate->workbuf;
@@ -322,6 +354,9 @@ static void reset_client_state(struct client_state *clstate)
 
 	pfree(clstate->args);
 	pfree(clstate->headers);
+
+	pfree(clstate->cryptpw);
+	rh_memzero(&clstate->cryptctx, sizeof(struct tf_ctx));
 
 	pfree(clstate->realpath);
 	clstate->filedir = 0;
@@ -605,7 +640,7 @@ static void free_dir_items(struct dir_items *di)
 }
 
 /* TAR stuff */
-struct tar_header {
+struct __attribute__((__packed__)) tar_header {
 	char name[100];
 	char mode[8];
 	char uid[8];
@@ -644,6 +679,12 @@ static size_t do_tar_stream_file_writer(void *ta, const void *data, size_t szdat
 	return io_send_data(uta->clstate->clinfo, data, szdata, YES, NO);
 }
 
+static void do_tar_stream_file_mangler(void *ta, void *data, size_t szdata)
+{
+	struct tar_fileargs *uta = ta;
+	if (uta->clstate->cryptpw) do_ctr_crypt(&uta->clstate->cryptctx, data, szdata);
+}
+
 /* should be never invoked. */
 static rh_fsize do_tar_stream_file_seeker(void *clstate, rh_fsize offset)
 {
@@ -660,6 +701,7 @@ static void do_tar_stream_file(struct tar_fileargs *ta)
 	ios_args.fn_args = ta;
 	ios_args.rdfn = do_tar_stream_file_reader;
 	ios_args.wrfn = do_tar_stream_file_writer;
+	ios_args.mgfn = do_tar_stream_file_mangler;
 	ios_args.skfn = do_tar_stream_file_seeker;
 
 	ios_args.workbuf = clstate->workbuf;
@@ -684,6 +726,7 @@ static void do_tar_pad(struct tar_fileargs *ta)
 	char pad[sizeof(struct tar_header)];
 
 	rh_memzero(pad, ta->do_pad);
+	if (ta->clstate->cryptpw) do_ctr_crypt(&ta->clstate->cryptctx, pad, ta->do_pad);
 	response_send_data(clstate, pad, ta->do_pad);
 }
 
@@ -701,7 +744,7 @@ static void do_tar_chksum(struct tar_header *tar)
 	rh_snprintf(tar->chksum, sizeof(tar->chksum), "%06o", sum);
 }
 
-static rh_yesno do_tar_longname(const char *path, const char *prependpfx, struct dir_items *di)
+static rh_yesno do_tar_longname(struct client_state *clstate, const char *path, const char *prependpfx, struct dir_items *di)
 {
 	struct tar_header *tar = (struct tar_header *)((char *)clstate->workbuf + sizeof(struct tar_header));
 	char *t = (char *)tar + sizeof(struct tar_header);
@@ -728,13 +771,15 @@ static rh_yesno do_tar_longname(const char *path, const char *prependpfx, struct
 	rh_snprintf(tar->size, sizeof(tar->size), "%011zo", sz);
 	tar->typeflag = 'L';
 	do_tar_chksum(tar);
+	if (clstate->cryptpw) do_ctr_crypt(&clstate->cryptctx, tar, sizeof(struct tar_header));
 	response_send_data(clstate, tar, sizeof(struct tar_header));
+	if (clstate->cryptpw) do_ctr_crypt(&clstate->cryptctx, t, sizeof(struct tar_header));
 	response_send_data(clstate, t, sizeof(struct tar_header));
 
 	return YES;
 }
 
-static rh_yesno do_tar_header(const char *path, const char *prependpfx, struct dir_items *di)
+static rh_yesno do_tar_header(struct client_state *clstate, const char *path, const char *prependpfx, struct dir_items *di)
 {
 	struct tar_header *tar = clstate->workbuf;
 	mode_t mfx;
@@ -768,13 +813,14 @@ static rh_yesno do_tar_header(const char *path, const char *prependpfx, struct d
 	if (di->it_type == PATH_IS_DIR) tar->typeflag = '5';
 	else tar->typeflag = '0';
 	if (sz >= (sizeof(tar->name)-1)) {
-		if (do_tar_longname(path, prependpfx, di) != YES) return NO;
+		if (do_tar_longname(clstate, path, prependpfx, di) != YES) return NO;
 	}
 	else {
 		if (di->it_type == PATH_IS_DIR)
 			if (!tar->name[sizeof(tar->name)-1]) tar->name[sz] = '/';
 	}
 	do_tar_chksum(tar);
+	if (clstate->cryptpw) do_ctr_crypt(&clstate->cryptctx, tar, sizeof(struct tar_header));
 	response_send_data(clstate, tar, sizeof(struct tar_header));
 
 	return YES;
@@ -831,7 +877,7 @@ static int do_recursive_tar(const char *dirpath, const char *prependpfx,
 		dmi.it_size = (rh_fsize)0;
 		dmi.it_mode = stst.st_mode;
 		dmi.it_mtime = stst.st_mtime;
-		if (do_tar_header(dirpath, prependpfx, &dmi) != YES) goto _closeret;
+		if (do_tar_header(clstate, dirpath, prependpfx, &dmi) != YES) goto _closeret;
 	}
 
 	di = NULL;
@@ -906,7 +952,7 @@ _next:			pfree(t);
 			if (ta.fd == -1) continue;
 			ta.this = &di[x];
 
-			if (do_tar_header(di[x].it_name, prependpfx, &di[x]) != YES) {
+			if (do_tar_header(clstate, di[x].it_name, prependpfx, &di[x]) != YES) {
 				ta.last_status = YES;
 				goto _bad_tar_hdr;
 			}
@@ -966,6 +1012,7 @@ void run_client(struct client_info *clinfo)
 	clstate->clinfo = clinfo;
 	clstate->ipaddr = clinfo->ipaddr;
 	clstate->httproot = rh_strdup(rh_root_dir);
+	if (rh_cryptpw) clstate->cryptpw = rh_strdup(rh_cryptpw);
 
 	/* First time handler for read from client: if client is lazy, the timeout will drop him. */
 	set_timeout_alarm(rh_client_request_timeout);
@@ -1853,6 +1900,7 @@ _out:			destroy_argv(&tenvp);
 		else {
 			struct stat stst;
 			rh_yesno part200 = NO;
+			size_t sendctr = 0;
 
 			/* POST is not permitted for plain files */
 			if (clstate->method > REQ_METHOD_HEAD) {
@@ -1902,14 +1950,29 @@ _out:			destroy_argv(&tenvp);
 			add_header(&clstate->sendheaders, "Last-Modified", s);
 			pfree(s);
 
+			if (clstate->cryptpw) {
+				/* Attach symmetric encryption, if htaccess said so */
+				if (!make_cryptctx(clstate->cryptpw, clstate->range_start, &clstate->cryptctx)) {
+					/* Failed at getting random bytes, are your devices/chroot sat up correctly? */
+					response_error(clstate, 500);
+					goto _done;
+				}
+				/* Never disclose real file type if encrypted */
+				add_header(&clstate->sendheaders, "Content-Type",
+					"application/octet-stream; charset=binary");
+				sendctr = TF_BLOCK_SIZE;
+			}
+			else {
+				/* Guess file type by available means */
 #ifdef WITH_LIBMAGIC
-			s = get_mime_fd(clstate->file_fd, clstate->workbuf, clstate->wkbufsz);
+				s = get_mime_fd(clstate->file_fd, clstate->workbuf, clstate->wkbufsz);
 #else
-			s = get_mime_filename(clstate->realpath);
+				s = get_mime_filename(clstate->realpath);
 #endif
-			add_header(&clstate->sendheaders, "Content-Type",
-				s ? s : "application/octet-stream; charset=binary");
-			pfree(s);
+				add_header(&clstate->sendheaders, "Content-Type",
+					s ? s : "application/octet-stream; charset=binary");
+				pfree(s);
+			}
 
 			/* User requests explicit download box */
 			s = client_arg("dl");
@@ -2033,20 +2096,22 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 						clstate->filesize);
 					add_header(&clstate->sendheaders, "Content-Range", s);
 				}
-				rh_asprintf(&s, "%llu", clstate->range_end-clstate->range_start);
+				rh_asprintf(&s, "%llu", clstate->range_end-clstate->range_start+sendctr);
 				add_header(&clstate->sendheaders, "Content-Length", s);
 				pfree(s);
 				response_ok(clstate, part200 == YES ? 200 : 206, YES);
 			}
 			else {
 				s = NULL;
-				rh_asprintf(&s, "%llu", clstate->filesize);
+				rh_asprintf(&s, "%llu", clstate->filesize+sendctr);
 				add_header(&clstate->sendheaders, "Content-Length", s);
 				response_ok(clstate, 200, YES); /* no range, just send headers */
 			}
 
 			if (clstate->method == REQ_METHOD_HEAD) goto _no_send;
 
+			/* If encrypting, send counter first */
+			if (clstate->cryptpw) response_send_data(clstate, clstate->cryptctx.ctr, TF_BLOCK_SIZE);
 			/* actually stream a file/partial file data, anything is inside clstate */
 			do_stream_file(clstate);
 
@@ -2165,7 +2230,18 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 				goto _done;
 			}
 
-			add_header(&clstate->sendheaders, "Content-Type", "application/x-tar");
+			if (clstate->cryptpw) {
+				/* Attach symmetric encryption, if htaccess said so */
+				if (!make_cryptctx(clstate->cryptpw, 0ULL, &clstate->cryptctx)) {
+					/* Failed at getting random bytes, are your devices/chroot sat up correctly? */
+					response_error(clstate, 500);
+					goto _done;
+				}
+				/* Never disclose real file type if encrypted */
+				add_header(&clstate->sendheaders, "Content-Type",
+					"application/octet-stream; charset=binary");
+			}
+			else add_header(&clstate->sendheaders, "Content-Type", "application/x-tar");
 
 			/*
 			 * It mimics CGI script. The reason for that is that the old
@@ -2203,6 +2279,9 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			if (s && !(!strcmp(s, "0"))) filt_nocase = YES;
 			else filt_nocase = NO;
 
+			/* If encrypting, send counter first */
+			if (clstate->cryptpw) response_send_data(clstate, clstate->cryptctx.ctr, TF_BLOCK_SIZE);
+
 			/* Form the tar archive. */
 			if (do_recursive_tar(".", t, tarincl, tarexcl, filt_nocase) == DO_TAR_ERR) {
 				pfree(t);
@@ -2212,6 +2291,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 
 			/* End the tar archive with two full zero blocks. */
 			rh_memzero(clstate->workbuf, sizeof(struct tar_header)*2);
+			if (clstate->cryptpw) do_ctr_crypt(&clstate->cryptctx, clstate->workbuf, sizeof(struct tar_header)*2);
 			response_send_data(clstate, clstate->workbuf, sizeof(struct tar_header)*2);
 
 			goto _done;

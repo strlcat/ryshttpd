@@ -79,3 +79,21 @@ char *urlencode(const char *str)
 
 	return r;
 }
+
+#if 0
+char *bin2hex(const void *s, size_t n)
+{
+	const char *p = (const char *)s;
+	char t[8], *r = NULL;
+
+	if (!s || n == 0) return rh_strdup("");
+
+	while (n > 0) {
+		rh_snprintf(t, sizeof(t), "%02hhx", *p);
+		rh_astrcat(&r, t);
+		p++; n--;
+	}
+
+	return r;
+}
+#endif

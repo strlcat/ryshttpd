@@ -92,6 +92,7 @@ void usage(void)
 	rh_say("    -O drop_setgid: drop setgid access privilege");
 	rh_say("    -O logformat=fmt: set log lines format to this format (see env.c)");
 	rh_say("    -O timeformat=fmt: set log timestamps to this strftime format");
+	rh_say("    -O cryptpw=s: set global password for symmetric cryptographic transfers");
 	rh_say("    -O cgiexecs=pattern: set cgi filenames match pattern");
 	rh_say("    -O nhcgiexecs=pattern: set No Headers cgi filenames match pattern");
 	rh_say("    -O cgiehexecs=pattern: set cgi End Head filenames match pattern");

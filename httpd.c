@@ -67,6 +67,7 @@ char *rh_dir_prepend_path;
 char *rh_content_charset;
 #endif
 char *rh_list_date_fmt;
+char *rh_cryptpw;
 unsigned long rh_client_request_timeout = RH_DEFAULT_REQUEST_TIMEOUT;
 unsigned long rh_client_keepalive_timeout = RH_DEFAULT_KEEPALIVE_TIMEOUT;
 unsigned long rh_client_receive_timeout = RH_DEFAULT_RECEIVE_TIMEOUT;
@@ -426,6 +427,14 @@ int main(int argc, char **argv)
 					else if (!strcmp(s, "drop_setgid")) FLIP_YESNO(drop_setgid);
 					else if (!strcmp(s, "logformat")) SETOPT(rh_logfmt, p);
 					else if (!strcmp(s, "timeformat")) SETOPT(rh_timefmt, p);
+					else if (!strcmp(s, "cryptpw")) {
+						SETOPT(rh_cryptpw, p);
+						s = strstr(optarg, "cryptpw=");
+						if (s) {
+							s += CSTR_SZ("cryptpw=");
+							rh_memzero(s, strlen(p)); /* note that length of p is taken */
+						}
+					}
 					else if (!strcmp(s, "cgiexecs")) SETOPT(rh_cgi_execs, p);
 					else if (!strcmp(s, "nhcgiexecs")) SETOPT(rh_nhcgi_execs, p);
 					else if (!strcmp(s, "cgiehexecs")) SETOPT(rh_cgieh_execs, p);

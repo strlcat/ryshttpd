@@ -169,6 +169,9 @@ Note that htupload.cgi component included does NOT check for a forbidden
 	some more memory than the usual, and it's currently recursive (as busybox tar).
 	This is embedded feature. It does not require external tools.
 	Please see more info in "DIRECTORY DOWNLOADING" section of this document.
+"cryptpw string": set symmetric cryptographic password for filesystem files or TAR archive dumps.
+	Any files served then become encrypted, using password string supplied.
+	See further CRYPTOGRAPHY section for details about how to decrypt received files.
 "regex_no_case yes": turn off regex sensitivity, so that you'll able to match both
 	"Apple" and "apple" with the same "/(apple)(|/.*)" regex pattern.
 	Note that if you will give the same command with opposite direction, then
@@ -371,6 +374,34 @@ What is supported and what is not:
 - No support to store items others than directory, file (regular) and long filename,
 - Compatible with GNU tar, busybox tar and bsdtar/libarchive,
 - By default it is disabled at runtime and must be enabled from .htaccess file.
+
+CRYPTOGRAPHY
+
+Starting from Rel.116, ryshttpd now includes a lightweight Threefish256/512 symmetric encryption algorithm.
+The purpose of it is to enable private file transfer, to which password (key) is known only by authorized persons.
+
+Unlike traditional authentication methods like WWW-Authenticate, forms, cookies or other "guarding fence" methods,
+ryshttpd simply encrypts the file it serves without asking for password or any other sensitive data to be transmitted
+or at least assumed by both parties, then proceeding to sending file data in cleartext.
+
+The burden of decrypting such file contents once sent to client lies purely on client itself.
+
+Here is specification and encrypted file format:
+
+- Counter size, bytes: 32 (256 bits)
+- Internal key size, bytes: 64 (512 bits)
+
+- Threefish256/512 is used in Counter mode. Counter is generated randomly for each file served.
+- Server side key is derived from password specified either globally or in .htaccess file.
+- Password can be of any length, is not salted. (because underlying CTR mode will randomize ciphertexts)
+  Think about password as a persistent key used to encrypt many separate messages, with different CTRs.
+
+- Counter data is placed at the very beginning of file, so you must use it to decrypt file.
+- The rest of stream is encrypted data.
+
+Please note that encryption facility here does not do a strong password to key conversion,
+to prevent possible DoS attacks on server itself. Encryption key is derived from password
+just by doing a single hash iteration over it with Skein hash function.
 
 PORTABILITY
 

@@ -159,14 +159,13 @@ static void set_counter(TF_BYTE_TYPE *ctr, rh_fsize seekpt)
 	tf_ctr_set(ctr, &seekbytes, sizeof(rh_fsize));
 }
 
-static rh_yesno make_cryptctx(const char *cryptpw, rh_fsize start_from, struct tf_ctx *cryptctx)
+static rh_yesno make_cryptctx(const char *cryptpw, struct tf_ctx *cryptctx)
 {
 	rh_memzero(cryptctx, sizeof(struct tf_ctx));
 	cryptctx->carry_bytes = 0;
 
 	if (!rh_getrandom(cryptctx->ctr, TF_BLOCK_SIZE)) return NO;
 
-	set_counter(cryptctx->ctr, start_from);
 	skeinhash(cryptctx->key, cryptpw, strlen(cryptpw));
 
 	return YES;
@@ -1952,7 +1951,7 @@ _out:			destroy_argv(&tenvp);
 
 			if (clstate->cryptpw) {
 				/* Attach symmetric encryption, if htaccess said so */
-				if (!make_cryptctx(clstate->cryptpw, clstate->range_start, &clstate->cryptctx)) {
+				if (!make_cryptctx(clstate->cryptpw, &clstate->cryptctx)) {
 					/* Failed at getting random bytes, are your devices/chroot sat up correctly? */
 					response_error(clstate, 500);
 					goto _done;
@@ -2232,7 +2231,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 
 			if (clstate->cryptpw) {
 				/* Attach symmetric encryption, if htaccess said so */
-				if (!make_cryptctx(clstate->cryptpw, 0ULL, &clstate->cryptctx)) {
+				if (!make_cryptctx(clstate->cryptpw, &clstate->cryptctx)) {
 					/* Failed at getting random bytes, are your devices/chroot sat up correctly? */
 					response_error(clstate, 500);
 					goto _done;

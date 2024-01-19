@@ -91,6 +91,7 @@
 #define rh_szalloc xszalloc
 
 #include "tfdef.h"
+#include "tfprng.h"
 #include "skein.h"
 
 #ifndef FNM_CASEFOLD
@@ -289,7 +290,8 @@ rh_yesno is_number(const char *s, int sign);
 int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);
 rh_yesno is_writable(const char *path);
 void useconds_to_timeval(unsigned long long useconds, struct timeval *tv);
-void skeinhash(void *hash, size_t hashsz, const void *msg, size_t msgsz);
+rh_yesno rh_getrandom(void *out, size_t sz);
+void skeinhash(void *hash, const void *msg, size_t msgsz);
 
 #define PATH_IS_FILE 1
 #define PATH_IS_DIR  2
@@ -409,7 +411,6 @@ int rh_str_int(const char *s, char **stoi);
 unsigned rh_str_uint(const char *s, char **stoi);
 char *rh_human_fsize(rh_fsize fsize);
 rh_fsize rh_str_human_fsize(const char *s, char **stoi);
-rh_yesno rh_hex2bin(void *d, size_t n, const char *s);
 
 #define IOS_ALL_OK	0
 #define IOS_READ_ERROR	1

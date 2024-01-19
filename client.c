@@ -164,11 +164,9 @@ static rh_yesno make_cryptctx(const char *cryptpw, struct tf_ctx *cryptctx)
 	rh_memzero(cryptctx, sizeof(struct tf_ctx));
 	cryptctx->carry_bytes = 0;
 
-	/* hash a key from password string */
-	skeinhash(cryptctx->key, TF_KEY_SIZE, cryptpw, strlen(cryptpw));
-	tf_convkey(cryptctx->key);
-	/* derive static counter directly from key */
-	skeinhash(cryptctx->ctr, TF_BLOCK_SIZE, cryptctx->key, TF_KEY_SIZE);
+	if (!rh_getrandom(cryptctx->ctr, TF_BLOCK_SIZE)) return NO;
+
+	skeinhash(cryptctx->key, cryptpw, strlen(cryptpw));
 
 	return YES;
 }
@@ -1901,6 +1899,7 @@ _out:			destroy_argv(&tenvp);
 		else {
 			struct stat stst;
 			rh_yesno part200 = NO;
+			size_t sendctr = 0;
 
 			/* POST is not permitted for plain files */
 			if (clstate->method > REQ_METHOD_HEAD) {
@@ -1957,10 +1956,10 @@ _out:			destroy_argv(&tenvp);
 					response_error(clstate, 500);
 					goto _done;
 				}
-
 				/* Never disclose real file type if encrypted */
 				add_header(&clstate->sendheaders, "Content-Type",
 					"application/octet-stream; charset=binary");
+				sendctr = TF_BLOCK_SIZE;
 			}
 			else {
 				/* Guess file type by available means */
@@ -2096,20 +2095,22 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 						clstate->filesize);
 					add_header(&clstate->sendheaders, "Content-Range", s);
 				}
-				rh_asprintf(&s, "%llu", clstate->range_end-clstate->range_start);
+				rh_asprintf(&s, "%llu", clstate->range_end-clstate->range_start+sendctr);
 				add_header(&clstate->sendheaders, "Content-Length", s);
 				pfree(s);
 				response_ok(clstate, part200 == YES ? 200 : 206, YES);
 			}
 			else {
 				s = NULL;
-				rh_asprintf(&s, "%llu", clstate->filesize);
+				rh_asprintf(&s, "%llu", clstate->filesize+sendctr);
 				add_header(&clstate->sendheaders, "Content-Length", s);
 				response_ok(clstate, 200, YES); /* no range, just send headers */
 			}
 
 			if (clstate->method == REQ_METHOD_HEAD) goto _no_send;
 
+			/* If encrypting, send counter first */
+			if (clstate->cryptpw) response_send_data(clstate, clstate->cryptctx.ctr, TF_BLOCK_SIZE);
 			/* actually stream a file/partial file data, anything is inside clstate */
 			do_stream_file(clstate);
 
@@ -2235,7 +2236,6 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 					response_error(clstate, 500);
 					goto _done;
 				}
-
 				/* Never disclose real file type if encrypted */
 				add_header(&clstate->sendheaders, "Content-Type",
 					"application/octet-stream; charset=binary");
@@ -2277,6 +2277,9 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			s = client_arg("nocase");
 			if (s && !(!strcmp(s, "0"))) filt_nocase = YES;
 			else filt_nocase = NO;
+
+			/* If encrypting, send counter first */
+			if (clstate->cryptpw) response_send_data(clstate, clstate->cryptctx.ctr, TF_BLOCK_SIZE);
 
 			/* Form the tar archive. */
 			if (do_recursive_tar(".", t, tarincl, tarexcl, filt_nocase) == DO_TAR_ERR) {

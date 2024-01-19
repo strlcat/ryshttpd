@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 {
 	int ifd, ofd;
 	char *infname, *onfname;
-	size_t lio, lrem, ldone, lblock;
+	size_t lio, lrem, ldone;
 	char *pblk;
 
 	if (argc < 3) htcusage();
@@ -95,9 +95,19 @@ int main(int argc, char **argv)
 	tf_convkey(key);
 	memset(pblk, 0, 256); /* I know the length, see getpass.c. */
 
-	skein_init(&sk, TF_TO_BITS(TF_BLOCK_SIZE));
-	skein_update(&sk, key, TF_KEY_SIZE);
-	skein_final(ctr, &sk);
+	pblk = ctr;
+	ldone = 0;
+	lrem = sizeof(ctr);
+_rctragain:
+	lio = read(ifd, pblk, lrem);
+	if (lio == 0) will_exit = 1;
+	if (lio != NOSIZE) ldone += lio;
+	else htcerror(infname);
+	if (lio && lio < lrem) {
+		pblk += lio;
+		lrem -= lio;
+		goto _rctragain;
+	}
 	tf_ctr_set(ctr, &range_start, sizeof(rh_fsize));
 
 	if (!strcmp(onfname, "-")) ofd = 1;
@@ -111,7 +121,7 @@ int main(int argc, char **argv)
 		if (will_exit) break;
 		pblk = srcblk;
 		ldone = 0;
-		lrem = lblock = sizeof(srcblk);
+		lrem = sizeof(srcblk);
 _ragain:	lio = read(ifd, pblk, lrem);
 		if (lio == 0) will_exit = 1;
 		if (lio != NOSIZE) ldone += lio;

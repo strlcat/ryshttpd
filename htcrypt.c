@@ -46,7 +46,7 @@ static rh_fsize range_start;
 
 static void htcusage(void)
 {
-	printf("htcusage: htcrypt srcfile dstfile [offset]\n");
+	printf("usage: htcrypt srcfile dstfile [offset]\n");
 	printf("Crypts srcfile into dstfile with password using CTR mode.\n");
 	printf("If file is encrypted, decrypts it. Otherwise encrypts it.\n");
 	printf("htcrypt will ask you for password to perform operation.\n");

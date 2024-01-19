@@ -42,13 +42,16 @@ static char key[TF_KEY_SIZE], ctr[TF_BLOCK_SIZE];
 static char srcblk[DATASIZE], dstblk[DATASIZE];
 static struct skein sk;
 static int will_exit;
+static rh_fsize range_start;
 
 static void htcusage(void)
 {
-	printf("htcusage: htcrypt srcfile dstfile\n");
+	printf("htcusage: htcrypt srcfile dstfile [offset]\n");
 	printf("Crypts srcfile into dstfile with password using CTR mode.\n");
 	printf("If file is encrypted, decrypts it. Otherwise encrypts it.\n");
 	printf("htcrypt will ask you for password to perform operation.\n");
+	printf("Specify optional offset value to first value used to download\n");
+	printf("a portion of file with \"Range: start-end\" HTTP header.\n");
 	exit(1);
 }
 
@@ -69,6 +72,7 @@ int main(int argc, char **argv)
 	infname = argv[1];
 	onfname = argv[2];
 	if (!infname || !onfname) htcusage();
+	if (argc >= 4) range_start = (rh_fsize)strtoull(argv[3], NULL, 0) / TF_BLOCK_SIZE;
 
 	pblk = xgetpass("Enter file password: ");
 	if (!pblk) htcusage();
@@ -82,6 +86,7 @@ int main(int argc, char **argv)
 	skein_init(&sk, TF_TO_BITS(TF_BLOCK_SIZE));
 	skein_update(&sk, key, TF_KEY_SIZE);
 	skein_final(ctr, &sk);
+	tf_ctr_set(ctr, &range_start, sizeof(rh_fsize));
 
 	if (!strcmp(infname, "-")) ifd = 0;
 	else {

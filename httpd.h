@@ -290,8 +290,7 @@ rh_yesno is_number(const char *s, int sign);
 int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);
 rh_yesno is_writable(const char *path);
 void useconds_to_timeval(unsigned long long useconds, struct timeval *tv);
-rh_yesno rh_getrandom(void *out, size_t sz);
-void skeinhash(void *hash, const void *msg, size_t msgsz);
+void skeinhash(void *hash, size_t hashsz, const void *msg, size_t msgsz);
 
 #define PATH_IS_FILE 1
 #define PATH_IS_DIR  2

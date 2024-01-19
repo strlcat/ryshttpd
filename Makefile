@@ -33,13 +33,15 @@ endif
 
 
 default: ryshttpd
-all: ryshttpd htupload
+all: ryshttpd htupload htcrypt
 
-RYSHTTPD_SRCS = $(filter-out htupload.c, $(wildcard *.c))
+RYSHTTPD_SRCS = $(filter-out htupload.c htcrypt.c, $(wildcard *.c))
 HTUPLOAD_SRCS = htupload.c conf.c say.c error.c memory.c io.c strxstr.c regexmatch.c xmalloc.c xstrlcpy.c xmemmem.c
+HTCRYPT_SRCS = htcrypt.c tfenc.c tfctrcarry.c tfctrapi.c skein.c getpasswd.c getpass.c
 HDRS = $(wildcard *.h)
 RYSHTTPD_OBJS = $(RYSHTTPD_SRCS:.c=.o)
 HTUPLOAD_OBJS = $(HTUPLOAD_SRCS:.c=.o)
+HTCRYPT_OBJS = $(HTCRYPT_SRCS:.c=.o)
 
 %.o: %.c VERSION $(HDRS)
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -50,6 +52,9 @@ ryshttpd: $(RYSHTTPD_OBJS)
 htupload: $(HTUPLOAD_OBJS)
 	$(CC) $(HTUPLOAD_OBJS) -o $@ $(LDFLAGS)
 
+htcrypt: $(HTCRYPT_OBJS)
+	$(CC) $(HTCRYPT_OBJS) -o $@ $(LDFLAGS)
+
 distclean: clean
 clean:
-	rm -f *.o ryshttpd htupload
+	rm -f *.o ryshttpd htupload htcrypt

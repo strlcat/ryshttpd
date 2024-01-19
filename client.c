@@ -1950,12 +1950,25 @@ _out:			destroy_argv(&tenvp);
 			pfree(s);
 
 			if (clstate->cryptpw) {
+				char *sctr;
+
 				/* Attach symmetric encryption, if htaccess said so */
 				if (!make_cryptctx(clstate->cryptpw, &clstate->cryptctx)) {
 					/* Failed at getting random bytes, are your devices/chroot sat up correctly? */
 					response_error(clstate, 500);
 					goto _done;
 				}
+
+				/* Client provided it's own initial counter, use it */
+				sctr = client_header("X-Encryption-Salt");
+				if (sctr) {
+					if (!rh_hex2bin(&clstate->cryptctx.ctr, TF_BLOCK_SIZE, sctr)) {
+						/* Bad or incomplete hex string */
+						response_error(clstate, 400);
+						goto _done;
+					}
+				}
+
 				/* Never disclose real file type if encrypted */
 				add_header(&clstate->sendheaders, "Content-Type",
 					"application/octet-stream; charset=binary");
@@ -2036,7 +2049,26 @@ _out:			destroy_argv(&tenvp);
 				 * No free form specifiers are permitted.
 				 */
 				s += CSTR_SZ("bytes=");
-_rangeparser:			/* If came there from header, then the range is already here. */
+_rangeparser:			if (clstate->cryptpw) {
+					char *sctr;
+
+					/*
+					 * Did client request partial transfer over encrypted file?
+					 * If so, it must provide it's own initial counter value.
+					 * If there is no any, reject transfer at all.
+					 */
+					sctr = client_header("X-Encryption-Salt");
+					if (!sctr) {
+						response_error(clstate, 400);
+						goto _done;
+					}
+					if (!rh_hex2bin(&clstate->cryptctx.ctr, TF_BLOCK_SIZE, sctr)) {
+						/* Bad or incomplete hex string */
+						response_error(clstate, 400);
+						goto _done;
+					}
+				}
+				/* If came there from header, then the range is already here. */
 				d = strchr(s, '-'); /* find dash */
 				if (!d) {
 					response_error(clstate, 400);
@@ -2230,12 +2262,25 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			}
 
 			if (clstate->cryptpw) {
+				char *sctr;
+
 				/* Attach symmetric encryption, if htaccess said so */
 				if (!make_cryptctx(clstate->cryptpw, &clstate->cryptctx)) {
 					/* Failed at getting random bytes, are your devices/chroot sat up correctly? */
 					response_error(clstate, 500);
 					goto _done;
 				}
+
+				/* Client provided it's own initial counter, use it */
+				sctr = client_header("X-Encryption-Salt");
+				if (sctr) {
+					if (!rh_hex2bin(&clstate->cryptctx.ctr, TF_BLOCK_SIZE, sctr)) {
+						/* Bad or incomplete hex string */
+						response_error(clstate, 400);
+						goto _done;
+					}
+				}
+
 				/* Never disclose real file type if encrypted */
 				add_header(&clstate->sendheaders, "Content-Type",
 					"application/octet-stream; charset=binary");

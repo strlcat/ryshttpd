@@ -411,6 +411,7 @@ int rh_str_int(const char *s, char **stoi);
 unsigned rh_str_uint(const char *s, char **stoi);
 char *rh_human_fsize(rh_fsize fsize);
 rh_fsize rh_str_human_fsize(const char *s, char **stoi);
+rh_yesno rh_hex2bin(void *d, size_t n, const char *s);
 
 #define IOS_ALL_OK	0
 #define IOS_READ_ERROR	1

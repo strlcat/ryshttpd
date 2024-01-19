@@ -166,6 +166,7 @@ static rh_yesno make_cryptctx(const char *cryptpw, struct tf_ctx *cryptctx)
 
 	/* hash a key from password string */
 	skeinhash(cryptctx->key, TF_KEY_SIZE, cryptpw, strlen(cryptpw));
+	tf_convkey(cryptctx->key);
 	/* derive static counter directly from key */
 	skeinhash(cryptctx->ctr, TF_BLOCK_SIZE, cryptctx->key, TF_KEY_SIZE);
 

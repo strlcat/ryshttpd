@@ -46,12 +46,14 @@ static rh_fsize range_start;
 
 static void htcusage(void)
 {
-	printf("usage: htcrypt srcfile dstfile [offset]\n");
+	printf("\nusage: htcrypt srcfile dstfile [offset]\n\n");
 	printf("Crypts srcfile into dstfile with password using CTR mode.\n");
 	printf("If file is encrypted, decrypts it. Otherwise encrypts it.\n");
 	printf("htcrypt will ask you for password to perform operation.\n");
+	printf("Specify \"-\" as srcfile to read data from stdin.\n");
+	printf("Specify \"-\" as dstfile to write data to stdout.\n");
 	printf("Specify optional offset value to first value used to download\n");
-	printf("a portion of file with \"Range: start-end\" HTTP header.\n");
+	printf("a portion of file with \"Range: start-end\" HTTP header.\n\n");
 	exit(1);
 }
 
@@ -74,6 +76,16 @@ int main(int argc, char **argv)
 	if (!infname || !onfname) htcusage();
 	if (argc >= 4) range_start = (rh_fsize)strtoull(argv[3], NULL, 0) / TF_BLOCK_SIZE;
 
+	if (!strcmp(infname, "-")) ifd = 0;
+	else {
+#ifdef O_LARGEFILE
+		ifd = open(infname, O_RDONLY | O_LARGEFILE);
+#else
+		ifd = open(infname, O_RDONLY);
+#endif
+		if (ifd == -1) htcerror(infname);
+	}
+
 	pblk = xgetpass("Enter file password: ");
 	if (!pblk) htcusage();
 
@@ -87,16 +99,6 @@ int main(int argc, char **argv)
 	skein_update(&sk, key, TF_KEY_SIZE);
 	skein_final(ctr, &sk);
 	tf_ctr_set(ctr, &range_start, sizeof(rh_fsize));
-
-	if (!strcmp(infname, "-")) ifd = 0;
-	else {
-#ifdef O_LARGEFILE
-		ifd = open(infname, O_RDONLY | O_LARGEFILE);
-#else
-		ifd = open(infname, O_RDONLY);
-#endif
-		if (ifd == -1) htcerror(infname);
-	}
 
 	if (!strcmp(onfname, "-")) ofd = 1;
 	else {

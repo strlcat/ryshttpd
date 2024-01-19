@@ -91,7 +91,6 @@
 #define rh_szalloc xszalloc
 
 #include "tfdef.h"
-#include "tfprng.h"
 #include "skein.h"
 
 #ifndef FNM_CASEFOLD

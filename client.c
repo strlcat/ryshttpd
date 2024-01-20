@@ -1900,6 +1900,7 @@ _out:			destroy_argv(&tenvp);
 			struct stat stst;
 			rh_yesno part200 = NO;
 			size_t sendctr = 0;
+			char *hxrange = NULL;
 
 			/* POST is not permitted for plain files */
 			if (clstate->method > REQ_METHOD_HEAD) {
@@ -2036,7 +2037,8 @@ _out:			destroy_argv(&tenvp);
 				 * No free form specifiers are permitted.
 				 */
 				s += CSTR_SZ("bytes=");
-_rangeparser:			/* If came there from header, then the range is already here. */
+_rangeparser:			sendctr += CSTR_SZ("ffffffffffffffff");
+				/* If came there from header, then the range is already here. */
 				d = strchr(s, '-'); /* find dash */
 				if (!d) {
 					response_error(clstate, 400);
@@ -2050,7 +2052,7 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 						goto _done;
 					}
 					if (clstate->range_start >= clstate->filesize) {
-						d = NULL;
+_notsatisf:					d = NULL;
 						rh_asprintf(&d, "bytes */%llu", clstate->filesize);
 						add_header(&clstate->sendheaders,
 							"Content-Range", d);
@@ -2072,26 +2074,30 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 						response_error(clstate, 400);
 						goto _done;
 					}
-					if (clstate->range_start >= clstate->filesize
-					|| clstate->range_start > clstate->range_end) {
-						d = NULL;
-						rh_asprintf(&d, "bytes */%llu", clstate->filesize);
-						add_header(&clstate->sendheaders,
-							"Content-Range", d);
-						pfree(d);
 
-						response_error(clstate, 416);
-						goto _done;
-					}
+					if (clstate->range_start >= clstate->filesize
+					|| clstate->range_start+1 > clstate->range_end) goto _notsatisf;
+
 					if (clstate->range_end > clstate->filesize)
 						clstate->range_end = clstate->filesize;
 				}
 
+				if (clstate->cryptpw) {
+					if (clstate->range_end < sendctr) clstate->range_end = 0;
+					else clstate->range_end -= sendctr;
+					if (clstate->range_start+1 > clstate->range_end) goto _notsatisf;
+					rh_asprintf(&hxrange, "%016llx", clstate->range_start);
+				}
+
 				s = NULL;
 				if (part200 == NO) {
+					rh_fsize t = clstate->range_end;
+
+					if (clstate->cryptpw) t += sendctr;
+
 					rh_asprintf(&s, "bytes %llu-%llu/%llu",
 						clstate->range_start,
-						clstate->range_end > 0 ? clstate->range_end-1 : 0,
+						t > 0 ? t-1 : 0,
 						clstate->filesize);
 					add_header(&clstate->sendheaders, "Content-Range", s);
 				}
@@ -2109,8 +2115,15 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 
 			if (clstate->method == REQ_METHOD_HEAD) goto _no_send;
 
-			/* If encrypting, send counter first */
-			if (clstate->cryptpw) response_send_data(clstate, clstate->cryptctx.ctr, TF_BLOCK_SIZE);
+			if (clstate->cryptpw) {
+				/* If encrypting and partial transfer, send nonrandom looking boundary indicator */
+				if (hxrange) {
+					response_send_data(clstate, hxrange, CSTR_SZ("ffffffffffffffff"));
+					pfree(hxrange);
+				}
+				/* If encrypting, send counter first */
+				response_send_data(clstate, clstate->cryptctx.ctr, TF_BLOCK_SIZE);
+			}
 			/* actually stream a file/partial file data, anything is inside clstate */
 			do_stream_file(clstate);
 

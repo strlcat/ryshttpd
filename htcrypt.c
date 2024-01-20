@@ -63,11 +63,22 @@ static void htcerror(const char *s)
 	exit(2);
 }
 
+static rh_yesno is_str_hxnum(const void *p, size_t n)
+{
+	const char *s = (const char *)p;
+
+	while (*s && n > 0) {
+		if (!isxdigit(*s)) return NO;
+		s++; n--;
+	}
+	return YES;
+}
+
 int main(int argc, char **argv)
 {
 	int ifd, ofd;
 	char *infname, *onfname;
-	size_t lio, lrem, ldone;
+	size_t lio, lrem, ldone, t;
 	char *pblk;
 
 	if (argc < 3) htcusage();
@@ -95,9 +106,11 @@ int main(int argc, char **argv)
 	tf_convkey(key);
 	memset(pblk, 0, 256); /* I know the length, see getpass.c. */
 
+	t = sizeof(ctr);
 	pblk = ctr;
+_skipchunk:
 	ldone = 0;
-	lrem = sizeof(ctr);
+	lrem = t;
 _rctragain:
 	lio = read(ifd, pblk, lrem);
 	if (lio == 0) will_exit = 1;
@@ -107,6 +120,20 @@ _rctragain:
 		pblk += lio;
 		lrem -= lio;
 		goto _rctragain;
+	}
+	if (is_str_hxnum(pblk, CSTR_SZ("ffffffffffffffff"))) {
+		char tmp[24], *stmp;
+
+		stmp = tmp;
+		memset(tmp, 0, sizeof(tmp));
+		strcpy(stmp, "0x"); stmp += CSTR_SZ("0x");
+		memcpy(stmp, pblk, CSTR_SZ("ffffffffffffffff"));
+		range_start = (rh_fsize)strtoull(stmp, NULL, 16) / TF_BLOCK_SIZE;
+
+		t = sizeof(ctr) - CSTR_SZ("ffffffffffffffff");
+		pblk = ctr+CSTR_SZ("ffffffffffffffff");
+		memcpy(ctr, pblk, t);
+		goto _skipchunk;
 	}
 	tf_ctr_set(ctr, &range_start, sizeof(rh_fsize));
 

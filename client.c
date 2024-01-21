@@ -162,18 +162,19 @@ static void set_counter(TF_BYTE_TYPE *ctr, rh_fsize seekpt)
 static rh_yesno make_cryptctx(const char *cryptpw, struct tf_ctx *cryptctx)
 {
 	rh_memzero(cryptctx, sizeof(struct tf_ctx));
-	cryptctx->carry_bytes = 0;
 
-	if (!rh_getrandom(cryptctx->ctr, TF_BLOCK_SIZE)) return NO;
-
-	skeinhash(cryptctx->key, cryptpw, strlen(cryptpw));
+	/* hash a key from password string */
+	skeinhash(cryptctx->keyx, TF_KEY_SIZE, cryptpw, strlen(cryptpw));
+	skeinhash(cryptctx->keyz, TF_KEY_SIZE, cryptctx->keyx, TF_KEY_SIZE);
+	/* derive static counter directly from master key */
+	skeinhash(cryptctx->ctr, TF_BLOCK_SIZE, cryptctx->keyx, TF_KEY_SIZE);
 
 	return YES;
 }
 
-static void do_ctr_crypt(struct tf_ctx *ctx, void *data, size_t szdata)
+static void do_encrypt(struct tf_ctx *ctx, void *data, size_t szdata)
 {
-	tf_ctr_crypt_carry(ctx->key, ctx->ctr, data, data, szdata, ctx->carry, &ctx->carry_bytes);
+	tf_xts_encrypt(ctx->keyx, ctx->keyz, ctx->ctr, data, data, szdata, XTS_BLOCKS_PER_SECTOR);
 }
 
 static size_t do_stream_file_reader(void *clstate, void *data, size_t szdata)
@@ -191,7 +192,7 @@ static size_t do_stream_file_writer(void *clstate, const void *data, size_t szda
 static void do_stream_file_mangler(void *clstate, void *data, size_t szdata)
 {
 	struct client_state *uclstate = clstate;
-	if (uclstate->cryptpw) do_ctr_crypt(&uclstate->cryptctx, data, szdata);
+	if (uclstate->cryptpw) do_encrypt(&uclstate->cryptctx, data, szdata);
 }
 
 static rh_fsize do_stream_file_seeker(void *clstate, rh_fsize offset)
@@ -681,7 +682,7 @@ static size_t do_tar_stream_file_writer(void *ta, const void *data, size_t szdat
 static void do_tar_stream_file_mangler(void *ta, void *data, size_t szdata)
 {
 	struct tar_fileargs *uta = ta;
-	if (uta->clstate->cryptpw) do_ctr_crypt(&uta->clstate->cryptctx, data, szdata);
+	if (uta->clstate->cryptpw) do_encrypt(&uta->clstate->cryptctx, data, szdata);
 }
 
 /* should be never invoked. */
@@ -725,7 +726,7 @@ static void do_tar_pad(struct tar_fileargs *ta)
 	char pad[sizeof(struct tar_header)];
 
 	rh_memzero(pad, ta->do_pad);
-	if (ta->clstate->cryptpw) do_ctr_crypt(&ta->clstate->cryptctx, pad, ta->do_pad);
+	if (ta->clstate->cryptpw) do_encrypt(&ta->clstate->cryptctx, pad, ta->do_pad);
 	response_send_data(clstate, pad, ta->do_pad);
 }
 
@@ -770,9 +771,9 @@ static rh_yesno do_tar_longname(struct client_state *clstate, const char *path, 
 	rh_snprintf(tar->size, sizeof(tar->size), "%011zo", sz);
 	tar->typeflag = 'L';
 	do_tar_chksum(tar);
-	if (clstate->cryptpw) do_ctr_crypt(&clstate->cryptctx, tar, sizeof(struct tar_header));
+	if (clstate->cryptpw) do_encrypt(&clstate->cryptctx, tar, sizeof(struct tar_header));
 	response_send_data(clstate, tar, sizeof(struct tar_header));
-	if (clstate->cryptpw) do_ctr_crypt(&clstate->cryptctx, t, sizeof(struct tar_header));
+	if (clstate->cryptpw) do_encrypt(&clstate->cryptctx, t, sizeof(struct tar_header));
 	response_send_data(clstate, t, sizeof(struct tar_header));
 
 	return YES;
@@ -819,7 +820,7 @@ static rh_yesno do_tar_header(struct client_state *clstate, const char *path, co
 			if (!tar->name[sizeof(tar->name)-1]) tar->name[sz] = '/';
 	}
 	do_tar_chksum(tar);
-	if (clstate->cryptpw) do_ctr_crypt(&clstate->cryptctx, tar, sizeof(struct tar_header));
+	if (clstate->cryptpw) do_encrypt(&clstate->cryptctx, tar, sizeof(struct tar_header));
 	response_send_data(clstate, tar, sizeof(struct tar_header));
 
 	return YES;
@@ -1899,8 +1900,6 @@ _out:			destroy_argv(&tenvp);
 		else {
 			struct stat stst;
 			rh_yesno part200 = NO;
-			size_t sendctr = 0;
-			char *hxrange = NULL;
 
 			/* POST is not permitted for plain files */
 			if (clstate->method > REQ_METHOD_HEAD) {
@@ -1957,10 +1956,10 @@ _out:			destroy_argv(&tenvp);
 					response_error(clstate, 500);
 					goto _done;
 				}
+
 				/* Never disclose real file type if encrypted */
 				add_header(&clstate->sendheaders, "Content-Type",
 					"application/octet-stream; charset=binary");
-				sendctr = TF_BLOCK_SIZE;
 			}
 			else {
 				/* Guess file type by available means */
@@ -2037,8 +2036,7 @@ _out:			destroy_argv(&tenvp);
 				 * No free form specifiers are permitted.
 				 */
 				s += CSTR_SZ("bytes=");
-_rangeparser:			sendctr += CSTR_SZ("ffffffffffffffff");
-				/* If came there from header, then the range is already here. */
+_rangeparser:			/* If came there from header, then the range is already here. */
 				d = strchr(s, '-'); /* find dash */
 				if (!d) {
 					response_error(clstate, 400);
@@ -2052,7 +2050,7 @@ _rangeparser:			sendctr += CSTR_SZ("ffffffffffffffff");
 						goto _done;
 					}
 					if (clstate->range_start >= clstate->filesize) {
-_notsatisf:					d = NULL;
+						d = NULL;
 						rh_asprintf(&d, "bytes */%llu", clstate->filesize);
 						add_header(&clstate->sendheaders,
 							"Content-Range", d);
@@ -2074,56 +2072,43 @@ _notsatisf:					d = NULL;
 						response_error(clstate, 400);
 						goto _done;
 					}
-
 					if (clstate->range_start >= clstate->filesize
-					|| clstate->range_start+1 > clstate->range_end) goto _notsatisf;
+					|| clstate->range_start > clstate->range_end) {
+						d = NULL;
+						rh_asprintf(&d, "bytes */%llu", clstate->filesize);
+						add_header(&clstate->sendheaders,
+							"Content-Range", d);
+						pfree(d);
 
+						response_error(clstate, 416);
+						goto _done;
+					}
 					if (clstate->range_end > clstate->filesize)
 						clstate->range_end = clstate->filesize;
 				}
 
-				if (clstate->cryptpw) {
-					if (clstate->range_end < sendctr) clstate->range_end = 0;
-					else clstate->range_end -= sendctr;
-					if (clstate->range_start+1 > clstate->range_end) goto _notsatisf;
-					rh_asprintf(&hxrange, "%016llx", clstate->range_start);
-				}
-
 				s = NULL;
 				if (part200 == NO) {
-					rh_fsize t = clstate->range_end;
-
-					if (clstate->cryptpw) t += sendctr;
-
 					rh_asprintf(&s, "bytes %llu-%llu/%llu",
 						clstate->range_start,
-						t > 0 ? t-1 : 0,
+						clstate->range_end > 0 ? clstate->range_end-1 : 0,
 						clstate->filesize);
 					add_header(&clstate->sendheaders, "Content-Range", s);
 				}
-				rh_asprintf(&s, "%llu", clstate->range_end-clstate->range_start+sendctr);
+				rh_asprintf(&s, "%llu", clstate->range_end-clstate->range_start);
 				add_header(&clstate->sendheaders, "Content-Length", s);
 				pfree(s);
 				response_ok(clstate, part200 == YES ? 200 : 206, YES);
 			}
 			else {
 				s = NULL;
-				rh_asprintf(&s, "%llu", clstate->filesize+sendctr);
+				rh_asprintf(&s, "%llu", clstate->filesize);
 				add_header(&clstate->sendheaders, "Content-Length", s);
 				response_ok(clstate, 200, YES); /* no range, just send headers */
 			}
 
 			if (clstate->method == REQ_METHOD_HEAD) goto _no_send;
 
-			if (clstate->cryptpw) {
-				/* If encrypting and partial transfer, send nonrandom looking boundary indicator */
-				if (hxrange) {
-					response_send_data(clstate, hxrange, CSTR_SZ("ffffffffffffffff"));
-					pfree(hxrange);
-				}
-				/* If encrypting, send counter first */
-				response_send_data(clstate, clstate->cryptctx.ctr, TF_BLOCK_SIZE);
-			}
 			/* actually stream a file/partial file data, anything is inside clstate */
 			do_stream_file(clstate);
 
@@ -2249,6 +2234,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 					response_error(clstate, 500);
 					goto _done;
 				}
+
 				/* Never disclose real file type if encrypted */
 				add_header(&clstate->sendheaders, "Content-Type",
 					"application/octet-stream; charset=binary");
@@ -2291,9 +2277,6 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 			if (s && !(!strcmp(s, "0"))) filt_nocase = YES;
 			else filt_nocase = NO;
 
-			/* If encrypting, send counter first */
-			if (clstate->cryptpw) response_send_data(clstate, clstate->cryptctx.ctr, TF_BLOCK_SIZE);
-
 			/* Form the tar archive. */
 			if (do_recursive_tar(".", t, tarincl, tarexcl, filt_nocase) == DO_TAR_ERR) {
 				pfree(t);
@@ -2303,7 +2286,7 @@ _nodlastmod:	/* In HTTP/1.0 and earlier chunked T.E. is NOT permitted. Turn off 
 
 			/* End the tar archive with two full zero blocks. */
 			rh_memzero(clstate->workbuf, sizeof(struct tar_header)*2);
-			if (clstate->cryptpw) do_ctr_crypt(&clstate->cryptctx, clstate->workbuf, sizeof(struct tar_header)*2);
+			if (clstate->cryptpw) do_encrypt(&clstate->cryptctx, clstate->workbuf, sizeof(struct tar_header)*2);
 			response_send_data(clstate, clstate->workbuf, sizeof(struct tar_header)*2);
 
 			goto _done;

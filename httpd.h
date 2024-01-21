@@ -91,7 +91,6 @@
 #define rh_szalloc xszalloc
 
 #include "tfdef.h"
-#include "tfprng.h"
 #include "skein.h"
 
 #ifndef FNM_CASEFOLD
@@ -129,6 +128,8 @@ enum { NO, YES };
 #define LIST_DATE_FMT "%H:%M:%S %d%b%Y"
 #define HTTP_REQUEST_MAX 4096
 #define HTTP_REQHEAD_MAX 2048
+
+#define XTS_BLOCKS_PER_SECTOR 32 /* try to match with upstream tfcrypt */
 
 typedef void (*sighandler_t)(int);
 typedef unsigned long long rh_fsize;
@@ -290,8 +291,7 @@ rh_yesno is_number(const char *s, int sign);
 int rh_fcntl(int fd, int cmd, int flags, rh_yesno set);
 rh_yesno is_writable(const char *path);
 void useconds_to_timeval(unsigned long long useconds, struct timeval *tv);
-rh_yesno rh_getrandom(void *out, size_t sz);
-void skeinhash(void *hash, const void *msg, size_t msgsz);
+void skeinhash(void *hash, size_t hashsz, const void *msg, size_t msgsz);
 
 #define PATH_IS_FILE 1
 #define PATH_IS_DIR  2
@@ -533,10 +533,9 @@ void response_send_data(struct client_state *clstate, const void *data, size_t s
 #define CGI_MODE_ENDHEAD 3
 
 struct tf_ctx {
-	TF_BYTE_TYPE key[TF_KEY_SIZE];
+	TF_BYTE_TYPE keyx[TF_KEY_SIZE];
+	TF_BYTE_TYPE keyz[TF_KEY_SIZE];
 	TF_BYTE_TYPE ctr[TF_BLOCK_SIZE];
-	TF_BYTE_TYPE carry[TF_BLOCK_SIZE];
-	size_t carry_bytes;
 };
 
 /* keep in sync with reset_client_state@client.c */

@@ -1,3 +1,31 @@
+/*
+ * ryshttpd -- simple filesharing http server.
+ *
+ * ryshttpd is copyrighted:
+ * Copyright (C) 2018 Andrey Rys. All rights reserved.
+ *
+ * ryshttpd is licensed to you under the terms of std. MIT/X11 license:
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #ifndef _THREEFISH_CIPHER_DEFINITIONS_HEADER
 #define _THREEFISH_CIPHER_DEFINITIONS_HEADER
 
@@ -29,11 +57,11 @@ extern "C" {
 #define TF_SWAP_FUNC htole64
 #endif
 
-#define TF_NR_BLOCK_BITS 256
-#define TF_NR_KEY_BITS 512
-#define TF_NR_BLOCK_UNITS 4
-#define TF_NR_KEY_UNITS 8
-#define IRR_POLY_CONST 0x425
+#define TF_NR_BLOCK_BITS 512
+#define TF_NR_KEY_BITS 768
+#define TF_NR_BLOCK_UNITS 8
+#define TF_NR_KEY_UNITS 12
+#define IRR_POLY_CONST 0x125
 
 #define TF_BYTE_TYPE uint8_t
 #define TF_SIZE_UNIT (sizeof(TF_UNIT_TYPE))
@@ -108,13 +136,17 @@ static inline void ctr_add(TF_UNIT_TYPE *x, size_t xl, const TF_UNIT_TYPE *y, si
 	}
 }
 
+struct tfe_stream;
+
 #define tf_convkey(k) do { data_to_words(k, TF_KEY_SIZE); } while (0)
 
 void tf_encrypt_rawblk(TF_UNIT_TYPE *O, const TF_UNIT_TYPE *I, const TF_UNIT_TYPE *K);
 void tf_decrypt_rawblk(TF_UNIT_TYPE *O, const TF_UNIT_TYPE *I, const TF_UNIT_TYPE *K);
 
 void tf_ctr_set(void *ctr, const void *sctr, size_t sctrsz);
-void tf_ctr_crypt_carry(const void *key, void *ctr, void *out, const void *in, size_t sz, void *carry, size_t *crem);
+
+void tf_xts_encrypt(const void *keyx, const void *keyz, void *ctr, void *out, const void *in, size_t sz, size_t bpi);
+void tf_xts_decrypt(const void *keyx, const void *keyz, void *ctr, void *out, const void *in, size_t sz, size_t bpi);
 
 #ifdef __cplusplus
 }

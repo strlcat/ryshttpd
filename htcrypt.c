@@ -28,7 +28,7 @@
 
 /*
  * This program is modified version of tfcrypt.c from tfcipher library.
- * It is modified to ask for password and to work in CTR mode instead of XTS.
+ * It is modified to ask for password.
  */
 
 #include "httpd.h"
@@ -38,21 +38,21 @@ extern char *xgetpass(const char *);
 
 #define DATASIZE 16384
 
-static char key[TF_KEY_SIZE], ctr[TF_BLOCK_SIZE];
+static char keyx[TF_KEY_SIZE], keyz[TF_KEY_SIZE], ctr[TF_BLOCK_SIZE];
 static char srcblk[DATASIZE], dstblk[DATASIZE];
 static struct skein sk;
 static int will_exit;
+static rh_yesno do_encrypt;
 static rh_fsize range_start;
 
 static void htcusage(void)
 {
-	printf("\nusage: htcrypt srcfile dstfile [offset]\n\n");
-	printf("Crypts srcfile into dstfile with password using CTR mode.\n");
-	printf("If file is encrypted, decrypts it. Otherwise encrypts it.\n");
+	printf("\nusage: htcrypt [-e] [-s offset] srcfile dstfile\n\n");
+	printf("Decrypts srcfile into dstfile with password using XTS mode.\n");
 	printf("htcrypt will ask you for password to perform operation.\n");
 	printf("Specify \"-\" as srcfile to read data from stdin.\n");
 	printf("Specify \"-\" as dstfile to write data to stdout.\n");
-	printf("Specify optional offset value to first value used to download\n");
+	printf("Specify optional '-s offset' value to first value used to download\n");
 	printf("a portion of file with \"Range: start-end\" HTTP header.\n\n");
 	exit(1);
 }
@@ -76,16 +76,24 @@ static rh_yesno is_str_hxnum(const void *p, size_t n)
 
 int main(int argc, char **argv)
 {
-	int ifd, ofd;
+	int ifd, ofd, c;
 	char *infname, *onfname;
 	size_t lio, lrem, ldone, t;
 	char *pblk;
 
-	if (argc < 3) htcusage();
-	infname = argv[1];
-	onfname = argv[2];
+	while ((c = getopt(argc, argv, "es:")) != -1) {
+		switch (c) {
+			case 'e': do_encrypt = YES; break;
+			case 's': range_start = (rh_fsize)strtoull(argv[3], NULL, 0) / TF_BLOCK_SIZE; break;
+			default: htcusage(); break;
+		}
+	}
+
+	if (!argv[optind]) htcusage();
+	infname = argv[optind];
+	if (!argv[optind+1]) htcusage();
+	onfname = argv[optind+1];
 	if (!infname || !onfname) htcusage();
-	if (argc >= 4) range_start = (rh_fsize)strtoull(argv[3], NULL, 0) / TF_BLOCK_SIZE;
 
 	if (!strcmp(infname, "-")) ifd = 0;
 	else {
@@ -97,44 +105,26 @@ int main(int argc, char **argv)
 		if (ifd == -1) htcerror(infname);
 	}
 
-	pblk = xgetpass("Enter file password: ");
-	if (!pblk) htcusage();
+	pblk = getenv("HTCPASSWD");
+	if (!pblk) {
+		pblk = xgetpass("Enter file password: ");
+		if (!pblk) htcusage();
+	}
 
 	skein_init(&sk, TF_TO_BITS(TF_KEY_SIZE));
 	skein_update(&sk, pblk, strlen(pblk));
-	skein_final(key, &sk);
-	tf_convkey(key);
-	memset(pblk, 0, 256); /* I know the length, see getpass.c. */
+	skein_final(keyx, &sk);
+	tf_convkey(keyx);
+	memset(pblk, 0, strlen(pblk));
 
-	t = sizeof(ctr);
-	pblk = ctr;
-_skipchunk:
-	ldone = 0;
-	lrem = t;
-_rctragain:
-	lio = read(ifd, pblk, lrem);
-	if (lio == 0) will_exit = 1;
-	if (lio != NOSIZE) ldone += lio;
-	else htcerror(infname);
-	if (lio && lio < lrem) {
-		pblk += lio;
-		lrem -= lio;
-		goto _rctragain;
-	}
-	if (is_str_hxnum(pblk, CSTR_SZ("ffffffffffffffff"))) {
-		char tmp[24], *stmp;
+	skein_init(&sk, TF_TO_BITS(TF_KEY_SIZE));
+	skein_update(&sk, keyx, TF_KEY_SIZE);
+	skein_final(keyz, &sk);
+	tf_convkey(keyz);
 
-		stmp = tmp;
-		memset(tmp, 0, sizeof(tmp));
-		strcpy(stmp, "0x"); stmp += CSTR_SZ("0x");
-		memcpy(stmp, pblk, CSTR_SZ("ffffffffffffffff"));
-		range_start = (rh_fsize)strtoull(stmp, NULL, 16) / TF_BLOCK_SIZE;
-
-		t = sizeof(ctr) - CSTR_SZ("ffffffffffffffff");
-		pblk = ctr+CSTR_SZ("ffffffffffffffff");
-		memcpy(ctr, pblk, t);
-		goto _skipchunk;
-	}
+	skein_init(&sk, TF_TO_BITS(TF_BLOCK_SIZE));
+	skein_update(&sk, keyx, TF_KEY_SIZE);
+	skein_final(ctr, &sk);
 	tf_ctr_set(ctr, &range_start, sizeof(rh_fsize));
 
 	if (!strcmp(onfname, "-")) ofd = 1;
@@ -159,7 +149,8 @@ _ragain:	lio = read(ifd, pblk, lrem);
 			goto _ragain;
 		}
 
-		tf_ctr_crypt_carry(key, ctr, dstblk, srcblk, ldone, NULL, 0);
+		if (do_encrypt) tf_xts_encrypt(keyx, keyz, ctr, dstblk, srcblk, ldone, XTS_BLOCKS_PER_SECTOR);
+		else tf_xts_decrypt(keyx, keyz, ctr, dstblk, srcblk, ldone, XTS_BLOCKS_PER_SECTOR);
 
 		pblk = dstblk;
 		lrem = ldone;

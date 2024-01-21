@@ -84,7 +84,7 @@ int main(int argc, char **argv)
 	while ((c = getopt(argc, argv, "es:")) != -1) {
 		switch (c) {
 			case 'e': do_encrypt = YES; break;
-			case 's': range_start = (rh_fsize)strtoull(argv[3], NULL, 0) / TF_BLOCK_SIZE; break;
+			case 's': range_start = (rh_fsize)strtoull(optarg, NULL, 0) / TF_BLOCK_SIZE; break;
 			default: htcusage(); break;
 		}
 	}
@@ -149,8 +149,8 @@ _ragain:	lio = read(ifd, pblk, lrem);
 			goto _ragain;
 		}
 
-		if (do_encrypt) tf_xts_encrypt(keyx, keyz, ctr, dstblk, srcblk, ldone, XTS_BLOCKS_PER_SECTOR);
-		else tf_xts_decrypt(keyx, keyz, ctr, dstblk, srcblk, ldone, XTS_BLOCKS_PER_SECTOR);
+		if (do_encrypt) tf_xts_encrypt(keyx, keyz, ctr, dstblk, srcblk, ldone, 1);
+		else tf_xts_decrypt(keyx, keyz, ctr, dstblk, srcblk, ldone, 1);
 
 		pblk = dstblk;
 		lrem = ldone;

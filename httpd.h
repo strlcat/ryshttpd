@@ -129,8 +129,6 @@ enum { NO, YES };
 #define HTTP_REQUEST_MAX 4096
 #define HTTP_REQHEAD_MAX 2048
 
-#define XTS_BLOCKS_PER_SECTOR 32 /* try to match with upstream tfcrypt */
-
 typedef void (*sighandler_t)(int);
 typedef unsigned long long rh_fsize;
 typedef short rh_yesno;

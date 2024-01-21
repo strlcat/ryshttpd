@@ -174,7 +174,7 @@ static rh_yesno make_cryptctx(const char *cryptpw, struct tf_ctx *cryptctx)
 
 static void do_encrypt(struct tf_ctx *ctx, void *data, size_t szdata)
 {
-	tf_xts_encrypt(ctx->keyx, ctx->keyz, ctx->ctr, data, data, szdata, XTS_BLOCKS_PER_SECTOR);
+	tf_xts_encrypt(ctx->keyx, ctx->keyz, ctx->ctr, data, data, szdata, 1);
 }
 
 static size_t do_stream_file_reader(void *clstate, void *data, size_t szdata)
@@ -2050,7 +2050,7 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 						goto _done;
 					}
 					if (clstate->range_start >= clstate->filesize) {
-						d = NULL;
+_notsatisf:					d = NULL;
 						rh_asprintf(&d, "bytes */%llu", clstate->filesize);
 						add_header(&clstate->sendheaders,
 							"Content-Range", d);
@@ -2073,18 +2073,20 @@ _rangeparser:			/* If came there from header, then the range is already here. */
 						goto _done;
 					}
 					if (clstate->range_start >= clstate->filesize
-					|| clstate->range_start > clstate->range_end) {
-						d = NULL;
-						rh_asprintf(&d, "bytes */%llu", clstate->filesize);
-						add_header(&clstate->sendheaders,
-							"Content-Range", d);
-						pfree(d);
-
-						response_error(clstate, 416);
-						goto _done;
-					}
+					|| clstate->range_start > clstate->range_end) goto _notsatisf;
 					if (clstate->range_end > clstate->filesize)
 						clstate->range_end = clstate->filesize;
+				}
+
+				if (clstate->cryptpw) {
+					if (clstate->range_start % TF_BLOCK_SIZE) {
+						s = NULL;
+						rh_asprintf(&s, "bytes %zu", TF_BLOCK_SIZE);
+						/* XTS mode on unaligned boundary will result in corruption, reject. */
+						add_header(&clstate->sendheaders, "X-Encryption-Align-Boundary", s);
+						pfree(s);
+						goto _notsatisf;
+					}
 				}
 
 				s = NULL;

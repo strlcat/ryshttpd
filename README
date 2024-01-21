@@ -377,7 +377,7 @@ What is supported and what is not:
 
 CRYPTOGRAPHY
 
-Starting from Rel.116, ryshttpd now includes a lightweight Threefish256/512 symmetric encryption algorithm.
+Starting from Rel.116, ryshttpd now includes a lightweight Threefish512/768 symmetric encryption algorithm.
 The purpose of it is to enable private file transfer, to which password (key) is known only by authorized persons.
 
 Unlike traditional authentication methods like WWW-Authenticate, forms, cookies or other "guarding fence" methods,
@@ -388,20 +388,27 @@ The burden of decrypting such file contents once sent to client lies purely on c
 
 Here is specification and encrypted file format:
 
-- Counter size, bytes: 32 (256 bits)
-- Internal key size, bytes: 64 (512 bits)
+- Block size, bytes: 64 (512 bits)
+- IV size, bytes: 64 (512 bits)
+- Internal master key size, bytes: 96 (768 bits), two keys for XTS mode
+- XTS key is derived from master key
 
-- Threefish256/512 is used in Counter mode. Counter is generated randomly for each file served.
+- Threefish512/768 is used in single block XTS mode. IV is derived from the key itself.
 - Server side key is derived from password specified either globally or in .htaccess file.
-- Password can be of any length, is not salted. (because underlying CTR mode will randomize ciphertexts)
-  Think about password as a persistent key used to encrypt many separate messages, with different CTRs.
-
-- Counter data is placed at the very beginning of file, so you must use it to decrypt file.
-- The rest of stream is encrypted data.
+- Password can be of any length, is not salted.
 
 Please note that encryption facility here does not do a strong password to key conversion,
 to prevent possible DoS attacks on server itself. Encryption key is derived from password
 just by doing a single hash iteration over it with Skein hash function.
+It is believed that underlying cipher is strong enough to provide required brute force resistance.
+
+The embedded cryptography is subject to change at any time and now it is not considered stable.
+Hence, here is a program included, htcrypt, is to help to decrypt current protocol encrypted files.
+
+Please also note that partial transfers with encrypted files are problematic. You always shall
+align to a cipher block size boundary when continuing transfer, otherwise, server will refuse
+such a transfer to unaligned boundary. This will only happen once server is required to encrypt a file.
+Use "truncate" Unix tool to strip unaligned tail and continue download as usual.
 
 PORTABILITY
 
